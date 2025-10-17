@@ -1,0 +1,24 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+solc = "0.8.20"
+optimizer = true
+optimizer_runs = 200
+
+remappings = [
+    "@openzeppelin/=lib/openzeppelin-contracts/"
+]
+
+# RPC endpoints
+[rpc_endpoints]
+lisk_sepolia = "${LISK_RPC_URL}"
+sepolia = "${SEPOLIA_RPC_URL}"
+polygon = "${POLYGON_RPC_URL}"
+base = "${BASE_RPC_URL}"
+
+# Etherscan configuration
+[etherscan]
+lisk_sepolia = { key = "${LISK_API_KEY}", url = "${LISK_VERIFIER_URL}" }
+
+# See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

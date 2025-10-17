@@ -587,4 +587,177 @@ body .welcome,
     font-size: 0.6rem;
     padding: 0.4rem 0.8rem;
   }
+}
+
+/* Wallet Connect Container */
+.wallet-connect-container {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+}
+
+.connect-wallet-btn {
+  background: linear-gradient(135deg, #7b3fe4 0%, #9d5ff5 100%);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9rem;
+  border: 2px solid rgb(116,113,203);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Press Start 2P', monospace;
+  white-space: nowrap;
+}
+
+.connect-wallet-btn:hover {
+  background: linear-gradient(135deg, #6a2fcf 0%, #8c4ee4 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 0 20px rgba(123, 63, 228, 0.6);
+}
+
+/* Staked Match Button */
+.mode-button.staked-match {
+  background: linear-gradient(135deg, #7b3fe4 0%, #9d5ff5 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.mode-button.staked-match:not(:disabled):hover {
+  background: linear-gradient(135deg, #6a2fcf 0%, #8c4ee4 100%);
+  box-shadow: 0 0 20px rgba(123, 63, 228, 0.5);
+}
+
+.mode-button.staked-match:disabled {
+  background: rgba(116,113,203, 0.3);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.mode-button.staked-match .button-icon {
+  filter: none;
+}
+
+/* Stake Modal */
+dialog.stake-modal {
+  min-width: 400px;
+  max-width: 500px;
+}
+
+dialog.stake-modal h2 {
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+.stake-options {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin: 1rem 0;
+}
+
+.stake-option {
+  padding: 1.5rem;
+  font-size: 1.2rem;
+  background: rgba(116,113,203, 0.2);
+  border: 2px solid rgb(116,113,203);
+  color: rgb(253,208,64);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Press Start 2P', monospace;
+  border-radius: 8px;
+}
+
+.stake-option:hover {
+  background: rgba(116,113,203, 0.4);
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(116,113,203, 0.5);
+  border-color: rgb(253,208,64);
+}
+
+/* Transaction Overlay */
+.transaction-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  backdrop-filter: blur(5px);
+}
+
+.transaction-modal {
+  background: #000;
+  border: 2px solid rgb(116,113,203);
+  border-radius: 12px;
+  padding: 3rem;
+  text-align: center;
+  box-shadow: 0 0 30px rgba(116,113,203, 0.5);
+  max-width: 400px;
+}
+
+.transaction-modal h3 {
+  color: rgb(253,208,64);
+  font-family: 'Press Start 2P', monospace;
+  font-size: 1rem;
+  margin-bottom: 2rem;
+  line-height: 1.5;
+}
+
+.transaction-modal p {
+  color: #bbb;
+  font-size: 0.7rem;
+  margin-top: 1.5rem;
+  line-height: 1.5;
+}
+
+/* Transaction Spinner */
+.transaction-spinner {
+  width: 60px;
+  height: 60px;
+  margin: 0 auto;
+  border: 4px solid rgba(116,113,203, 0.2);
+  border-top: 4px solid rgb(116,113,203);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Mobile Responsive */
+@media (max-width: 600px) {
+  .wallet-connect-container {
+    top: 10px;
+    right: 10px;
+  }
+
+  dialog.stake-modal {
+    min-width: 90%;
+    max-width: 90%;
+  }
+
+  .stake-options {
+    grid-template-columns: 1fr;
+  }
+
+  .stake-option {
+    font-size: 1rem;
+    padding: 1.2rem;
+  }
+
+  .transaction-modal {
+    padding: 2rem;
+    max-width: 90%;
+  }
+
+  .transaction-modal h3 {
+    font-size: 0.8rem;
+  }
 } 
