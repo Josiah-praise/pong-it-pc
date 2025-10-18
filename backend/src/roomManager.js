@@ -37,6 +37,28 @@ class RoomManager {
     return roomCode;
   }
 
+  createRoomWithCode(roomCode, hostPlayer, hostSocketId) {
+    if (this.rooms.has(roomCode)) {
+      throw new Error('Room code already exists');
+    }
+
+    this.rooms.set(roomCode, {
+      code: roomCode,
+      host: {
+        ...hostPlayer,
+        socketId: hostSocketId
+      },
+      guest: null,
+      spectators: new Set(),
+      status: 'waiting',
+      createdAt: Date.now()
+    });
+
+    this.playerRooms.set(hostSocketId, roomCode);
+
+    return roomCode;
+  }
+
   joinRoom(roomCode, guestPlayer, guestSocketId) {
     const room = this.rooms.get(roomCode);
 

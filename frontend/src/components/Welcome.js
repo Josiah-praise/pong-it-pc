@@ -26,6 +26,7 @@ const Welcome = ({ setGameState, savedUsername, onUsernameSet }) => {
   const { address, isConnected } = useAccount();
   const {
     stakeAsPlayer1,
+    hash: stakingTxHash,
     isPending: isStakingPending,
     isConfirming: isStakingConfirming,
     isSuccess: isStakingSuccess,
@@ -127,27 +128,65 @@ const Welcome = ({ setGameState, savedUsername, onUsernameSet }) => {
 
   // Handle successful staking transaction
   useEffect(() => {
-    if (isStakingSuccess && pendingRoomCode) {
-      console.log('Staking successful! Navigating to game...');
+    console.log('🔍 Staking useEffect triggered:', {
+      isStakingSuccess,
+      pendingRoomCode,
+      stakingTxHash,
+      selectedStakeAmount,
+      address,
+      savedUsername
+    });
+
+    if (isStakingSuccess && pendingRoomCode && stakingTxHash) {
+      console.log('✅ All conditions met! Staking successful! Creating game record...');
+
+      // Notify player-service about the staked match
+      fetch(`${process.env.REACT_APP_PLAYER_SERVICE_URL || 'http://localhost:5001'}/games`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomCode: pendingRoomCode,
+          player1: { name: savedUsername, rating: 800 },
+          isStaked: true,
+          stakeAmount: selectedStakeAmount,
+          player1Address: address,
+          player1TxHash: stakingTxHash,
+          status: 'waiting'
+        })
+      })
+        .then(res => res.json())
+        .then(data => {
+          console.log('✅ Staked game created in database:', data);
+        })
+        .catch(err => {
+          console.error('❌ Failed to create game record:', err);
+        });
+
       setStakingInProgress(false);
       setGameState(prev => ({
         ...prev,
         player1: { name: savedUsername, rating: 800 },
         gameMode: 'create-staked',
         roomCode: pendingRoomCode,
-        stakeAmount: selectedStakeAmount
+        stakeAmount: selectedStakeAmount,
+        player1Address: address,
+        player1TxHash: stakingTxHash
       }));
+
       navigate('/game', {
         state: {
           gameMode: 'create-staked',
           roomCode: pendingRoomCode,
-          stakeAmount: selectedStakeAmount
+          stakeAmount: selectedStakeAmount,
+          player1Address: address,
+          player1TxHash: stakingTxHash
         }
       });
+
       setPendingRoomCode(null);
       setSelectedStakeAmount(null);
     }
-  }, [isStakingSuccess, pendingRoomCode, selectedStakeAmount, savedUsername, navigate, setGameState]);
+  }, [isStakingSuccess, pendingRoomCode, stakingTxHash, selectedStakeAmount, savedUsername, address, navigate, setGameState]);
 
   // Handle staking errors
   useEffect(() => {
@@ -323,6 +362,11 @@ const Welcome = ({ setGameState, savedUsername, onUsernameSet }) => {
         <button onClick={() => open()} className="connect-wallet-btn">
           {isConnected ? `${address?.slice(0, 6)}...${address?.slice(-4)}` : 'Connect Wallet'}
         </button>
+        {isConnected && (
+          <button onClick={() => navigate('/my-wins')} className="my-wins-btn">
+            🏆 My Wins
+          </button>
+        )}
       </div>
 
       <div className={`title-container ${showTitle ? 'show' : ''}`}>

@@ -4,6 +4,7 @@ import Welcome from './components/Welcome';
 import MultiplayerGame from './components/MultiplayerGame';
 import SpectatorView from './components/SpectatorView';
 import GameOver from './components/GameOver';
+import MyWins from './components/MyWins';
 import { Web3Provider } from './components/Web3Provider';
 import './styles/App.css';
 import { STORAGE_KEY } from './constants';
@@ -74,6 +75,10 @@ function App() {
                   }}
                 />
               }
+            />
+            <Route
+              path="/my-wins"
+              element={<MyWins />}
             />
           </Routes>
         </div>

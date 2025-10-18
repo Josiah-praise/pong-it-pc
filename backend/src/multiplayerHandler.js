@@ -18,8 +18,8 @@ class MultiplayerHandler {
   handleConnection(socket) {
     const username = socket.handshake.query.username;
 
-    socket.on('createRoom', (player) => {
-      this.handleCreateRoom(socket, player);
+    socket.on('createRoom', (player, roomCode) => {
+      this.handleCreateRoom(socket, player, roomCode);
     });
 
     socket.on('joinRoom', (data) => {
@@ -28,6 +28,10 @@ class MultiplayerHandler {
 
     socket.on('findRandomMatch', (player) => {
       this.handleFindRandomMatch(socket, player);
+    });
+
+    socket.on('player2StakeCompleted', (data) => {
+      this.handlePlayer2StakeCompleted(socket, data);
     });
 
     socket.on('spectateGame', (data) => {
@@ -83,15 +87,24 @@ class MultiplayerHandler {
     }
   }
 
-  handleCreateRoom(socket, player) {
+  handleCreateRoom(socket, player, providedRoomCode) {
     const existingRoom = this.roomManager.getRoomByPlayer(socket.id);
     if (existingRoom) {
       socket.emit('error', { message: 'Already in a room' });
       return;
     }
 
-    const roomCode = this.roomManager.createRoom(player, socket.id);
+    // Use provided room code for staked matches, or generate new one
+    const roomCode = providedRoomCode || this.roomManager.createRoom(player, socket.id);
+
+    // If room code was provided, create room with that specific code
+    if (providedRoomCode) {
+      this.roomManager.createRoomWithCode(roomCode, player, socket.id);
+    }
+
     socket.join(roomCode);
+
+    console.log(`Room created: ${roomCode} by ${player.name} (${socket.id})`);
 
     socket.emit('roomCreated', {
       roomCode,
@@ -99,9 +112,12 @@ class MultiplayerHandler {
     });
   }
 
-  handleJoinRoom(socket, { roomCode, player }) {
+  async handleJoinRoom(socket, { roomCode, player }) {
+    console.log(`🔵 handleJoinRoom called - Room: ${roomCode}, Player: ${player?.name}, Socket: ${socket.id}`);
+
     const existingRoom = this.roomManager.getRoomByPlayer(socket.id);
     if (existingRoom) {
+      console.log(`❌ Player ${socket.id} already in room ${existingRoom.code}`);
       socket.emit('error', { message: 'Already in a room' });
       return;
     }
@@ -109,15 +125,71 @@ class MultiplayerHandler {
     const result = this.roomManager.joinRoom(roomCode, player, socket.id);
 
     if (!result.success) {
+      console.log(`❌ Failed to join room ${roomCode}: ${result.error}`);
       socket.emit('error', { message: result.error });
       return;
     }
 
+    console.log(`✅ Player ${player?.name} joined room ${roomCode}`);
     socket.join(roomCode);
 
+    // Check if this is a staked match
+    try {
+      const fetch = require('node-fetch');
+      const playerServiceUrl = process.env.PLAYER_SERVICE_URL || 'http://localhost:5001';
+      console.log(`📡 Checking for staked match: GET ${playerServiceUrl}/games/${roomCode}`);
+      const response = await fetch(`${playerServiceUrl}/games/${roomCode}`);
+
+      console.log(`📡 Response status: ${response.status}`);
+
+      if (response.ok) {
+        const gameRecord = await response.json();
+        console.log(`📊 Game record:`, JSON.stringify(gameRecord, null, 2));
+
+        if (gameRecord.isStaked && !gameRecord.player2TxHash) {
+          // This is a staked match and Player 2 hasn't staked yet
+          console.log(`💎 Staked match detected! Prompting Player 2 to stake ${gameRecord.stakeAmount} ETH`);
+          socket.emit('stakedMatchJoined', {
+            roomCode,
+            stakeAmount: gameRecord.stakeAmount,
+            player1Address: gameRecord.player1Address
+          });
+
+          this.io.to(roomCode).emit('waitingForPlayer2Stake', {
+            stakeAmount: gameRecord.stakeAmount
+          });
+
+          console.log(`⏳ Waiting for Player 2 to stake...`);
+          return; // Don't start game yet
+        } else {
+          console.log(`ℹ️  Not a staked match or Player 2 already staked. isStaked: ${gameRecord.isStaked}, player2TxHash: ${gameRecord.player2TxHash}`);
+        }
+      } else {
+        console.log(`ℹ️  No game record found (status ${response.status}) - proceeding with normal match`);
+      }
+    } catch (error) {
+      console.error('❌ Error checking for staked match:', error);
+      // Continue with normal game start if check fails
+    }
+
+    console.log(`🎮 Starting normal game for room ${roomCode}`);
     this.io.to(roomCode).emit('roomReady', {
       room: result.room
     });
+
+    this.startGame(roomCode);
+  }
+
+  handlePlayer2StakeCompleted(socket, { roomCode }) {
+    const room = this.roomManager.getRoom(roomCode);
+    if (!room) {
+      socket.emit('error', { message: 'Room not found' });
+      return;
+    }
+
+    console.log('Player 2 staking completed for room:', roomCode);
+
+    this.io.to(roomCode).emit('roomReady', { room });
 
     this.startGame(roomCode);
   }
@@ -198,6 +270,50 @@ class MultiplayerHandler {
       winner.name,
       loser.name
     );
+
+    // Check if this is a staked match and update game record
+    try {
+      const fetch = require('node-fetch');
+      const playerServiceUrl = process.env.PLAYER_SERVICE_URL || 'http://localhost:5001';
+      const response = await fetch(`${playerServiceUrl}/games/${roomCode}`);
+
+      if (response.ok) {
+        const gameRecord = await response.json();
+
+        if (gameRecord.isStaked) {
+          console.log(`💎 Staked match ended. Updating game record with winner...`);
+
+          // Determine which player won (player1 or player2)
+          const winnerRole = game.players[0].socketId === winner.socketId ? 'player1' : 'player2';
+
+          // Update game record with winner (includes automatic signature generation)
+          const updateResponse = await fetch(`${playerServiceUrl}/games`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              roomCode,
+              winner: winnerRole,
+              score: game.score || [0, 0],
+              stakeAmount: gameRecord.stakeAmount,
+              status: 'finished'
+            })
+          });
+
+          if (updateResponse.ok) {
+            const updatedGame = await updateResponse.json();
+            console.log(`✅ Staked game ${roomCode} updated with winner: ${winnerRole}`);
+            if (updatedGame.winnerSignature) {
+              console.log(`🔐 Winner signature generated:`, updatedGame.winnerSignature.slice(0, 20) + '...');
+            }
+          } else {
+            console.error(`❌ Failed to update staked game ${roomCode}:`, await updateResponse.text());
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error updating staked game record:', error);
+      // Continue with normal game end flow even if update fails
+    }
 
     const gameOverData = {
       winner: winner.socketId,

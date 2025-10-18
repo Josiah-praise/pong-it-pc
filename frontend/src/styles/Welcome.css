@@ -595,6 +595,8 @@ body .welcome,
   top: 20px;
   right: 20px;
   z-index: 1000;
+  display: flex;
+  gap: 0.75rem;
 }
 
 .connect-wallet-btn {
@@ -614,6 +616,25 @@ body .welcome,
   background: linear-gradient(135deg, #6a2fcf 0%, #8c4ee4 100%);
   transform: translateY(-2px);
   box-shadow: 0 0 20px rgba(123, 63, 228, 0.6);
+}
+
+.my-wins-btn {
+  background: rgba(253, 208, 64, 0.2);
+  color: rgb(253, 208, 64);
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9rem;
+  border: 2px solid rgb(253, 208, 64);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Press Start 2P', monospace;
+  white-space: nowrap;
+}
+
+.my-wins-btn:hover {
+  background: rgba(253, 208, 64, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 0 20px rgba(253, 208, 64, 0.5);
 }
 
 /* Staked Match Button */

@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAccount } from 'wagmi';
 import io from 'socket.io-client';
 import '../styles/Game.css';
 import { BACKEND_URL, INITIAL_RATING } from '../constants';
 import soundManager from '../utils/soundManager';
+import { useStakeAsPlayer2 } from '../hooks/useContract';
 
 
 const Game = ({ username }) => {
@@ -36,6 +38,23 @@ const Game = ({ username }) => {
   const [genomeInput, setGenomeInput] = useState('');
 
   const [audioStarted, setAudioStarted] = useState(false);
+
+  // Web3 and staking state
+  const { address, isConnected } = useAccount();
+  const [showStakingModal, setShowStakingModal] = useState(false);
+  const [stakingData, setStakingData] = useState(null); // { roomCode, stakeAmount, player1Address }
+  const [stakingInProgress, setStakingInProgress] = useState(false);
+  const [waitingForPlayer2Stake, setWaitingForPlayer2Stake] = useState(false);
+
+  // Player2 staking hook
+  const {
+    stakeAsPlayer2,
+    hash: player2TxHash,
+    isPending: isPlayer2Staking,
+    isConfirming: isPlayer2Confirming,
+    isSuccess: isPlayer2StakingSuccess,
+    error: player2StakingError
+  } = useStakeAsPlayer2();
 
   const drawGame = useCallback((ctx) => {
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -235,7 +254,7 @@ const Game = ({ username }) => {
     newSocket.on('connect', () => {
       if (!isMounted.current) return;
       console.log('Socket connected with ID:', newSocket.id, 'Username:', username);
-      
+
       soundManager.playWithErrorHandling(
         () => soundManager.playLoadSound(),
         'Connection sound failed to play'
@@ -248,8 +267,25 @@ const Game = ({ username }) => {
         socketId: newSocket.id
       };
 
-      console.log('Sending findGame with data:', playerData);
-      newSocket.emit('findGame', playerData);
+      // Handle different game modes from location.state
+      const gameMode = location.state?.gameMode;
+      const roomCode = location.state?.roomCode;
+
+      console.log('Game mode:', gameMode, 'Room code:', roomCode);
+
+      if (gameMode === 'create' || gameMode === 'create-staked') {
+        // Create a room (for staked matches, we already have the room code)
+        console.log('Creating room...', roomCode ? `with code ${roomCode}` : '');
+        newSocket.emit('createRoom', playerData, roomCode);
+      } else if (gameMode === 'join' && roomCode) {
+        // Join an existing room
+        console.log('Joining room:', roomCode);
+        newSocket.emit('joinRoom', { roomCode, player: playerData });
+      } else {
+        // Quick match - find random opponent
+        console.log('Finding random match...');
+        newSocket.emit('findRandomMatch', playerData);
+      }
     });
 
     newSocket.on('connect_error', (error) => {
@@ -347,9 +383,37 @@ const Game = ({ username }) => {
       });
     });
 
+    // Staked match event handlers
+    newSocket.on('stakedMatchJoined', (data) => {
+      console.log('Joined staked match:', data);
+      setStakingData({
+        roomCode: data.roomCode,
+        stakeAmount: data.stakeAmount,
+        player1Address: data.player1Address
+      });
+      setShowStakingModal(true);
+    });
+
+    newSocket.on('waitingForPlayer2Stake', (data) => {
+      console.log('Waiting for Player 2 to stake:', data);
+      setWaitingForPlayer2Stake(true);
+      setIsWaiting(true);
+    });
+
+    newSocket.on('roomCreated', (data) => {
+      console.log('Room created:', data);
+      // Room created, waiting for Player2
+      setIsWaiting(true);
+    });
+
+    newSocket.on('roomReady', (data) => {
+      console.log('Room ready after Player 2 staking:', data);
+      setWaitingForPlayer2Stake(false);
+    });
+
     newSocket.on('error', (error) => {
-      console.error('Socket error:', error);
-      alert('Error: ' + error);
+      console.error('Socket error:', error.message || error);
+      alert('Error: ' + (error.message || error));
     });
 
     // Connect after setting up handlers
@@ -473,13 +537,62 @@ const Game = ({ username }) => {
     };
   }, [isGenomeMusicActive]);
 
+  // Handle successful Player2 staking
+  useEffect(() => {
+    if (isPlayer2StakingSuccess && player2TxHash && stakingData) {
+      console.log('Player 2 staking successful! Updating game record...');
+
+      // Update game record with Player 2 data
+      fetch(`${process.env.REACT_APP_PLAYER_SERVICE_URL || 'http://localhost:5001'}/games`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomCode: stakingData.roomCode,
+          player2: { name: username, rating: 800 },
+          player2Address: address,
+          player2TxHash: player2TxHash,
+          status: 'playing'
+        })
+      })
+        .then(res => res.json())
+        .then(data => {
+          console.log('✅ Player 2 stake recorded in database:', data);
+
+          // Notify backend that Player 2 has staked
+          if (socketRef.current) {
+            socketRef.current.emit('player2StakeCompleted', {
+              roomCode: stakingData.roomCode
+            });
+          }
+
+          // Close staking modal
+          setShowStakingModal(false);
+          setStakingInProgress(false);
+          setStakingData(null);
+        })
+        .catch(err => {
+          console.error('❌ Failed to update game record:', err);
+          alert('Failed to record your stake. Please contact support.');
+        });
+    }
+  }, [isPlayer2StakingSuccess, player2TxHash, stakingData, address, username]);
+
+  // Handle Player2 staking errors
+  useEffect(() => {
+    if (player2StakingError) {
+      console.error('Player 2 staking error:', player2StakingError);
+      setStakingInProgress(false);
+      alert(`Transaction failed: ${player2StakingError.message || 'Unknown error'}`);
+    }
+  }, [player2StakingError]);
+
   // Add this inside your existing useEffect for game setup
   useEffect(() => {
     // Add 'playing' class to body when game starts
     if (!isWaiting) {
       document.body.classList.add('playing');
     }
-    
+
     return () => {
       // Remove 'playing' class when component unmounts
       document.body.classList.remove('playing');
@@ -643,6 +756,186 @@ const Game = ({ username }) => {
           }}>
             Start Game Audio
           </button>
+        </div>
+      )}
+
+      {/* Player2 Staking Modal */}
+      {showStakingModal && stakingData && (
+        <div className="transaction-overlay" style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.9)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000
+        }}>
+          <div className="transaction-modal" style={{
+            background: '#1a1a1a',
+            padding: '40px',
+            borderRadius: '15px',
+            border: '3px solid rgb(116,113,203)',
+            maxWidth: '500px',
+            textAlign: 'center'
+          }}>
+            <h2 style={{
+              fontFamily: 'Press Start 2P, monospace',
+              fontSize: '1.5rem',
+              color: 'rgb(253,208,64)',
+              marginBottom: '20px'
+            }}>
+              Staked Match
+            </h2>
+
+            {!stakingInProgress ? (
+              <>
+                <p style={{
+                  fontFamily: 'Press Start 2P, monospace',
+                  fontSize: '0.9rem',
+                  color: '#fff',
+                  marginBottom: '20px',
+                  lineHeight: '1.8'
+                }}>
+                  This is a staked match!<br/>
+                  You must stake {stakingData.stakeAmount} ETH<br/>
+                  to play against your opponent.
+                </p>
+
+                <div style={{
+                  background: 'rgba(116,113,203,0.2)',
+                  padding: '15px',
+                  borderRadius: '10px',
+                  marginBottom: '25px'
+                }}>
+                  <p style={{
+                    fontFamily: 'monospace',
+                    fontSize: '0.8rem',
+                    color: '#888',
+                    marginBottom: '5px'
+                  }}>
+                    Player 1 Address:
+                  </p>
+                  <p style={{
+                    fontFamily: 'monospace',
+                    fontSize: '0.9rem',
+                    color: 'rgb(116,113,203)',
+                    wordBreak: 'break-all'
+                  }}>
+                    {stakingData.player1Address}
+                  </p>
+                </div>
+
+                {!isConnected ? (
+                  <p style={{
+                    color: 'rgb(253,208,64)',
+                    fontFamily: 'Press Start 2P, monospace',
+                    fontSize: '0.8rem',
+                    marginBottom: '20px'
+                  }}>
+                    Please connect your wallet first
+                  </p>
+                ) : (
+                  <div style={{ display: 'flex', gap: '15px', justifyContent: 'center' }}>
+                    <button
+                      onClick={async () => {
+                        setStakingInProgress(true);
+                        try {
+                          await stakeAsPlayer2(stakingData.roomCode, stakingData.stakeAmount);
+                        } catch (error) {
+                          console.error('Error initiating stake:', error);
+                          setStakingInProgress(false);
+                        }
+                      }}
+                      style={{
+                        fontFamily: 'Press Start 2P, monospace',
+                        fontSize: '0.9rem',
+                        padding: '15px 25px',
+                        background: 'rgb(116,113,203)',
+                        color: '#000',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Stake {stakingData.stakeAmount} ETH
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        setShowStakingModal(false);
+                        setStakingData(null);
+                        navigate('/');
+                      }}
+                      style={{
+                        fontFamily: 'Press Start 2P, monospace',
+                        fontSize: '0.9rem',
+                        padding: '15px 25px',
+                        background: '#444',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                <h3 style={{
+                  fontFamily: 'Press Start 2P, monospace',
+                  fontSize: '1rem',
+                  color: '#fff',
+                  marginBottom: '20px'
+                }}>
+                  {isPlayer2Staking && 'Confirm Transaction...'}
+                  {isPlayer2Confirming && 'Transaction Confirming...'}
+                </h3>
+                <div className="transaction-spinner" style={{
+                  border: '4px solid rgba(116,113,203,0.3)',
+                  borderTop: '4px solid rgb(116,113,203)',
+                  borderRadius: '50%',
+                  width: '60px',
+                  height: '60px',
+                  animation: 'spin 1s linear infinite',
+                  margin: '0 auto 20px'
+                }}></div>
+                <p style={{
+                  fontFamily: 'Press Start 2P, monospace',
+                  fontSize: '0.8rem',
+                  color: '#888'
+                }}>
+                  {isPlayer2Staking && 'Confirm the transaction in your wallet'}
+                  {isPlayer2Confirming && 'Waiting for blockchain confirmation'}
+                </p>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Waiting for Player2 Stake (for Player1) */}
+      {waitingForPlayer2Stake && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'rgba(116,113,203,0.9)',
+          padding: '15px 30px',
+          borderRadius: '10px',
+          border: '2px solid rgb(253,208,64)',
+          zIndex: 1500,
+          fontFamily: 'Press Start 2P, monospace',
+          fontSize: '0.9rem',
+          color: '#000'
+        }}>
+          Waiting for Player 2 to stake...
         </div>
       )}
     </div>

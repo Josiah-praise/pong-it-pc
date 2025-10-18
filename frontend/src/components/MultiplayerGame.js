@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAccount } from 'wagmi';
 import io from 'socket.io-client';
 import '../styles/Game.css';
 import { BACKEND_URL, INITIAL_RATING } from '../constants';
 import soundManager from '../utils/soundManager';
+import { useStakeAsPlayer2 } from '../hooks/useContract';
 
 const MultiplayerGame = ({ username }) => {
   const canvasRef = useRef(null);
@@ -24,11 +26,25 @@ const MultiplayerGame = ({ username }) => {
   const [pausesRemaining, setPausesRemaining] = useState(2);
   const [showRematchRequest, setShowRematchRequest] = useState(false);
   const [rematchRequester, setRematchRequester] = useState(null);
+  const [showPlayer2StakingModal, setShowPlayer2StakingModal] = useState(false);
+  const [stakingData, setStakingData] = useState(null);
+  const [isPlayer2Staking, setIsPlayer2Staking] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const containerRef = useRef(null);
   const prevGameDataRef = useRef(null);
   const isMounted = useRef(false);
+
+  // Web3 hooks
+  const { address, isConnected } = useAccount();
+  const {
+    stakeAsPlayer2,
+    hash: player2StakingTxHash,
+    isPending: isPlayer2StakingPending,
+    isConfirming: isPlayer2StakingConfirming,
+    isSuccess: isPlayer2StakingSuccess,
+    error: player2StakingError
+  } = useStakeAsPlayer2();
 
   const gameMode = location.state?.gameMode || 'quick';
   const joinRoomCode = location.state?.roomCode;
@@ -127,6 +143,82 @@ const MultiplayerGame = ({ username }) => {
     }
   }, []);
 
+  const handlePlayer2Stake = useCallback(async () => {
+    if (!isConnected) {
+      alert('Please connect your wallet first');
+      return;
+    }
+
+    if (!stakingData) {
+      alert('No staking data available');
+      return;
+    }
+
+    console.log('💎 Player2 initiating stake:', stakingData);
+    setIsPlayer2Staking(true);
+
+    try {
+      await stakeAsPlayer2(stakingData.roomCode, stakingData.stakeAmount);
+    } catch (error) {
+      console.error('Error initiating Player2 stake:', error);
+      setIsPlayer2Staking(false);
+    }
+  }, [isConnected, stakingData, stakeAsPlayer2]);
+
+  // Handle successful Player2 staking transaction
+  useEffect(() => {
+    console.log('🔍 Player2 Staking useEffect:', {
+      isPlayer2StakingSuccess,
+      player2StakingTxHash,
+      stakingData,
+      address
+    });
+
+    if (isPlayer2StakingSuccess && player2StakingTxHash && stakingData) {
+      console.log('✅ Player2 staking successful! Updating game record...');
+
+      // Update player-service with Player2's transaction
+      fetch(`${process.env.REACT_APP_PLAYER_SERVICE_URL || 'http://localhost:5001'}/games`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          roomCode: stakingData.roomCode,
+          player2: { name: username, rating: 800 },
+          player2Address: address,
+          player2TxHash: player2StakingTxHash,
+          status: 'ready'
+        })
+      })
+        .then(res => res.json())
+        .then(data => {
+          console.log('✅ Game record updated with Player2 stake:', data);
+        })
+        .catch(err => {
+          console.error('❌ Failed to update game record:', err);
+        });
+
+      // Notify backend that Player2 has completed staking
+      if (socketRef.current) {
+        socketRef.current.emit('player2StakeCompleted', {
+          roomCode: stakingData.roomCode
+        });
+      }
+
+      setIsPlayer2Staking(false);
+      setShowPlayer2StakingModal(false);
+      setStakingData(null);
+    }
+  }, [isPlayer2StakingSuccess, player2StakingTxHash, stakingData, username, address]);
+
+  // Handle Player2 staking errors
+  useEffect(() => {
+    if (player2StakingError) {
+      console.error('Player2 staking error:', player2StakingError);
+      setIsPlayer2Staking(false);
+      alert(`Transaction failed: ${player2StakingError.message || 'Unknown error'}`);
+    }
+  }, [player2StakingError]);
+
   const setupSocket = useCallback(() => {
     if (!isMounted.current || !username) return;
 
@@ -148,8 +240,9 @@ const MultiplayerGame = ({ username }) => {
         socketId: socket.id
       };
 
-      if (gameMode === 'create') {
-        socket.emit('createRoom', playerData);
+      if (gameMode === 'create' || gameMode === 'create-staked') {
+        const specificRoomCode = location.state?.roomCode;
+        socket.emit('createRoom', playerData, specificRoomCode);
       } else if (gameMode === 'join' && joinRoomCode) {
         socket.emit('joinRoom', { roomCode: joinRoomCode, player: playerData });
       } else {
@@ -172,6 +265,18 @@ const MultiplayerGame = ({ username }) => {
     socket.on('roomReady', (data) => {
       console.log('Room ready:', data);
       setIsWaiting(true);
+    });
+
+    socket.on('stakedMatchJoined', (data) => {
+      console.log('💎 Staked match joined! Player2 needs to stake:', data);
+      setStakingData(data);
+      setShowPlayer2StakingModal(true);
+    });
+
+    socket.on('waitingForPlayer2Stake', (data) => {
+      console.log('⏳ Waiting for Player2 to stake:', data);
+      setIsWaiting(true);
+      // Update the waiting message to indicate we're waiting for Player2 to stake
     });
 
     socket.on('gameStart', (data) => {
@@ -419,6 +524,57 @@ const MultiplayerGame = ({ username }) => {
                 Decline
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {showPlayer2StakingModal && stakingData && (
+        <div className="transaction-overlay">
+          <div className="transaction-modal">
+            <h2>💎 Staked Match</h2>
+            <p style={{ marginBottom: '20px' }}>
+              This is a staked match. You need to stake {stakingData.stakeAmount} ETH to join.
+            </p>
+            {!isPlayer2Staking ? (
+              <>
+                <p style={{ fontSize: '14px', color: '#888', marginBottom: '20px' }}>
+                  {isConnected
+                    ? `Your wallet: ${address?.slice(0, 6)}...${address?.slice(-4)}`
+                    : 'Please connect your wallet first'}
+                </p>
+                <div className="rematch-buttons">
+                  <button
+                    onClick={handlePlayer2Stake}
+                    className="accept-btn"
+                    disabled={!isConnected}
+                  >
+                    Stake & Play
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowPlayer2StakingModal(false);
+                      setStakingData(null);
+                      navigate('/');
+                    }}
+                    className="decline-btn"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3>
+                  {isPlayer2StakingPending && 'Confirm Transaction in Wallet...'}
+                  {isPlayer2StakingConfirming && 'Transaction Confirming...'}
+                </h3>
+                <div className="transaction-spinner"></div>
+                <p>
+                  {isPlayer2StakingPending && 'Please confirm the transaction in your wallet'}
+                  {isPlayer2StakingConfirming && 'Waiting for blockchain confirmation'}
+                </p>
+              </>
+            )}
           </div>
         </div>
       )}
