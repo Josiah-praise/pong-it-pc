@@ -26,9 +26,12 @@ class SignatureService {
 
   /**
    * Sign winner proof for claiming prize
+   * IMPORTANT: This MUST match the smart contract's signature verification:
+   * keccak256(abi.encodePacked(roomCode, winnerAddress))
+   *
    * @param {string} roomCode - The game room code
    * @param {string} winnerAddress - Ethereum address of the winner
-   * @param {string} stakeAmount - Stake amount in ETH (e.g., "0.01")
+   * @param {string} stakeAmount - Stake amount (not used in signature, but logged)
    * @returns {Promise<string>} - Signature hex string
    */
   async signWinner(roomCode, winnerAddress, stakeAmount) {
@@ -36,38 +39,24 @@ class SignatureService {
       throw new Error('Signing wallet not initialized. Check SIGNING_WALLET_PRIVATE_KEY in .env');
     }
 
-    // EIP-712 domain separator (must match contract)
-    const domain = {
-      name: 'PongEscrow',
-      version: '1',
-      chainId: parseInt(process.env.CHAIN_ID || '4202'),
-      verifyingContract: process.env.CONTRACT_ADDRESS
-    };
-
-    // Type definitions (must match contract)
-    const types = {
-      Winner: [
-        { name: 'roomCode', type: 'string' },
-        { name: 'winner', type: 'address' },
-        { name: 'stakeAmount', type: 'uint256' }
-      ]
-    };
-
-    // Values to sign
-    const value = {
-      roomCode,
-      winner: winnerAddress,
-      stakeAmount: ethers.parseEther(stakeAmount)
-    };
-
     try {
-      const signature = await this.wallet.signTypedData(domain, types, value);
+      // Pack the data exactly as the smart contract expects:
+      // keccak256(abi.encodePacked(roomCode, winnerAddress))
+      const messageHash = ethers.solidityPackedKeccak256(
+        ['string', 'address'],
+        [roomCode, winnerAddress]
+      );
+
+      // Sign the message hash (this automatically applies EIP-191 prefix)
+      const signature = await this.wallet.signMessage(ethers.getBytes(messageHash));
 
       console.log('✅ Winner signature generated:', {
         roomCode,
         winner: winnerAddress,
         stakeAmount,
-        signaturePreview: signature.slice(0, 10) + '...'
+        messageHash,
+        signaturePreview: signature.slice(0, 10) + '...',
+        signerAddress: this.wallet.address
       });
 
       return signature;
