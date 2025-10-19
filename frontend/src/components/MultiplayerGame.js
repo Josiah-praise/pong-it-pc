@@ -29,6 +29,7 @@ const MultiplayerGame = ({ username }) => {
   const [showPlayer2StakingModal, setShowPlayer2StakingModal] = useState(false);
   const [stakingData, setStakingData] = useState(null);
   const [isPlayer2Staking, setIsPlayer2Staking] = useState(false);
+  const [stakingErrorMessage, setStakingErrorMessage] = useState(null);
   const navigate = useNavigate();
   const location = useLocation();
   const containerRef = useRef(null);
@@ -155,6 +156,7 @@ const MultiplayerGame = ({ username }) => {
     }
 
     console.log('💎 Player2 initiating stake:', stakingData);
+    setStakingErrorMessage(null); // Clear any previous errors
     setIsPlayer2Staking(true);
 
     try {
@@ -215,7 +217,20 @@ const MultiplayerGame = ({ username }) => {
     if (player2StakingError) {
       console.error('Player2 staking error:', player2StakingError);
       setIsPlayer2Staking(false);
-      alert(`Transaction failed: ${player2StakingError.message || 'Unknown error'}`);
+
+      // Extract a user-friendly error message
+      let errorMsg = 'Transaction failed. Please try again.';
+      if (player2StakingError.message) {
+        if (player2StakingError.message.includes('User rejected')) {
+          errorMsg = 'Transaction was rejected. Please try again when ready.';
+        } else if (player2StakingError.message.includes('insufficient funds')) {
+          errorMsg = 'Insufficient funds in your wallet.';
+        } else {
+          errorMsg = player2StakingError.message;
+        }
+      }
+
+      setStakingErrorMessage(errorMsg);
     }
   }, [player2StakingError]);
 
@@ -535,7 +550,48 @@ const MultiplayerGame = ({ username }) => {
             <p style={{ marginBottom: '20px' }}>
               This is a staked match. You need to stake {stakingData.stakeAmount} ETH to join.
             </p>
-            {!isPlayer2Staking ? (
+
+            {/* Error State */}
+            {stakingErrorMessage && !isPlayer2Staking ? (
+              <>
+                <div style={{
+                  backgroundColor: '#ff4444',
+                  color: 'white',
+                  padding: '15px',
+                  borderRadius: '8px',
+                  marginBottom: '20px',
+                  fontSize: '14px'
+                }}>
+                  ❌ {stakingErrorMessage}
+                </div>
+                <p style={{ fontSize: '14px', color: '#888', marginBottom: '20px' }}>
+                  {isConnected
+                    ? `Your wallet: ${address?.slice(0, 6)}...${address?.slice(-4)}`
+                    : 'Please connect your wallet first'}
+                </p>
+                <div className="rematch-buttons">
+                  <button
+                    onClick={handlePlayer2Stake}
+                    className="accept-btn"
+                    disabled={!isConnected}
+                  >
+                    Retry Staking
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowPlayer2StakingModal(false);
+                      setStakingData(null);
+                      setStakingErrorMessage(null);
+                      navigate('/');
+                    }}
+                    className="decline-btn"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            ) : !isPlayer2Staking ? (
+              /* Initial State */
               <>
                 <p style={{ fontSize: '14px', color: '#888', marginBottom: '20px' }}>
                   {isConnected
@@ -554,6 +610,7 @@ const MultiplayerGame = ({ username }) => {
                     onClick={() => {
                       setShowPlayer2StakingModal(false);
                       setStakingData(null);
+                      setStakingErrorMessage(null);
                       navigate('/');
                     }}
                     className="decline-btn"
@@ -563,6 +620,7 @@ const MultiplayerGame = ({ username }) => {
                 </div>
               </>
             ) : (
+              /* Loading State */
               <>
                 <h3>
                   {isPlayer2StakingPending && 'Confirm Transaction in Wallet...'}

@@ -201,11 +201,17 @@ app.post('/games', async (req, res) => {
     // Check if game already exists
     let game = await Game.findOne({ roomCode });
 
+    // Convert score array to object if needed
+    let scoreObject = score;
+    if (score && Array.isArray(score)) {
+      scoreObject = { player1: score[0], player2: score[1] };
+    }
+
     if (game) {
       // Update existing game
       if (player2) game.player2 = player2;
       if (winner) game.winner = winner;
-      if (score) game.score = score;
+      if (scoreObject) game.score = scoreObject;
       if (player2Address) game.player2Address = player2Address?.toLowerCase();
       if (player2TxHash) game.player2TxHash = player2TxHash;
       if (winner) {
@@ -220,7 +226,7 @@ app.post('/games', async (req, res) => {
         player1,
         player2,
         winner,
-        score,
+        score: scoreObject,
         isStaked: isStaked || false,
         stakeAmount,
         player1Address: player1Address?.toLowerCase(),

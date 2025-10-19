@@ -189,7 +189,9 @@ const MyWins = () => {
                   <div className="detail-row">
                     <span className="detail-label">Final Score:</span>
                     <span className="detail-value">
-                      {game.score ? game.score.join(' - ') : 'N/A'}
+                      {game.score && game.score.player1 !== undefined && game.score.player2 !== undefined
+                        ? `${game.score.player1} - ${game.score.player2}`
+                        : 'N/A'}
                     </span>
                   </div>
 
