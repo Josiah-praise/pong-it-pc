@@ -17,6 +17,7 @@ const Welcome = ({ setGameState, savedUsername, onUsernameSet }) => {
   const [stakingInProgress, setStakingInProgress] = useState(false);
   const [selectedStakeAmount, setSelectedStakeAmount] = useState(null);
   const [pendingRoomCode, setPendingRoomCode] = useState(null);
+  const [stakingErrorMessage, setStakingErrorMessage] = useState(null);
   const titleRef = useRef();
   const navigate = useNavigate();
   const socketRef = useRef(null);
@@ -188,12 +189,35 @@ const Welcome = ({ setGameState, savedUsername, onUsernameSet }) => {
     }
   }, [isStakingSuccess, pendingRoomCode, stakingTxHash, selectedStakeAmount, savedUsername, address, navigate, setGameState]);
 
+  // Helper function to parse error messages
+  const getErrorMessage = (error) => {
+    if (!error) return 'Unknown error occurred';
+
+    const errorString = error.message || error.toString();
+
+    // User rejected the transaction
+    if (errorString.includes('User rejected') ||
+        errorString.includes('User denied') ||
+        errorString.includes('user rejected') ||
+        error.name === 'UserRejectedRequestError') {
+      return 'Transaction cancelled';
+    }
+
+    // Insufficient funds
+    if (errorString.includes('insufficient funds')) {
+      return 'Insufficient funds in your wallet';
+    }
+
+    // Generic transaction failure
+    return 'Transaction failed. Please try again.';
+  };
+
   // Handle staking errors
   useEffect(() => {
     if (stakingError) {
       console.error('Staking error:', stakingError);
+      setStakingErrorMessage(getErrorMessage(stakingError));
       setStakingInProgress(false);
-      alert(`Transaction failed: ${stakingError.message || 'Unknown error'}`);
     }
   }, [stakingError]);
 
@@ -313,6 +337,55 @@ const Welcome = ({ setGameState, savedUsername, onUsernameSet }) => {
               </button>
             `).join('')}
           </div>
+          <div style="margin: 20px 0; padding: 15px; background: rgba(116,113,203,0.1); border-radius: 8px;">
+            <label style="display: block; margin-bottom: 10px; color: #888; font-size: 0.9rem;">
+              Or enter custom amount (min 0.001 ETH):
+            </label>
+            <input
+              type="number"
+              id="custom-stake-input"
+              placeholder="0.001"
+              step="0.001"
+              min="0.001"
+              style="
+                width: 100%;
+                padding: 10px;
+                background: #1a1a1a;
+                border: 1px solid rgb(116,113,203);
+                border-radius: 5px;
+                color: #fff;
+                font-size: 1rem;
+              "
+            />
+            <div id="custom-amount-error" style="
+              display: none;
+              margin-top: 8px;
+              padding: 8px;
+              background: rgba(255, 107, 107, 0.1);
+              border: 1px solid #ff6b6b;
+              border-radius: 5px;
+              color: #ff6b6b;
+              font-size: 0.75rem;
+            "></div>
+            <button
+              type="button"
+              id="use-custom-amount-btn"
+              style="
+                width: 100%;
+                margin-top: 10px;
+                padding: 10px;
+                background: rgb(116,113,203);
+                color: #000;
+                border: none;
+                border-radius: 5px;
+                cursor: pointer;
+                font-family: 'Press Start 2P', monospace;
+                font-size: 0.8rem;
+              "
+            >
+              Use Custom Amount
+            </button>
+          </div>
           <div class="buttons" style="margin-top: 20px;">
             <button type="button" id="cancel-stake-btn">Cancel</button>
           </div>
@@ -328,7 +401,62 @@ const Welcome = ({ setGameState, savedUsername, onUsernameSet }) => {
         modal.remove();
       };
 
-      // Handle stake amount selection
+      // Handle custom amount input
+      const customInput = modal.querySelector('#custom-stake-input');
+      const useCustomBtn = modal.querySelector('#use-custom-amount-btn');
+      const errorDiv = modal.querySelector('#custom-amount-error');
+
+      // Clear error on input change
+      customInput.oninput = () => {
+        customInput.style.borderColor = 'rgb(116,113,203)';
+        errorDiv.style.display = 'none';
+      };
+
+      useCustomBtn.onclick = async () => {
+        const customAmount = parseFloat(customInput.value);
+
+        // Validate custom amount
+        if (!customAmount || isNaN(customAmount)) {
+          customInput.style.borderColor = '#ff6b6b';
+          errorDiv.textContent = 'Please enter a valid amount';
+          errorDiv.style.display = 'block';
+          return;
+        }
+
+        if (customAmount < 0.001) {
+          customInput.style.borderColor = '#ff6b6b';
+          errorDiv.textContent = 'Minimum stake amount is 0.001 ETH';
+          errorDiv.style.display = 'block';
+          return;
+        }
+
+        // Reset border color and hide error
+        customInput.style.borderColor = 'rgb(116,113,203)';
+        errorDiv.style.display = 'none';
+
+        const stakeAmount = customAmount.toString();
+        modal.remove();
+
+        // Generate room code
+        const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+        console.log(`Creating staked match with ${stakeAmount} ETH, room code: ${roomCode}`);
+
+        setStakingInProgress(true);
+        setSelectedStakeAmount(stakeAmount);
+        setPendingRoomCode(roomCode);
+        setStakingErrorMessage(null); // Clear any previous errors
+
+        try {
+          await stakeAsPlayer1(roomCode, stakeAmount);
+        } catch (error) {
+          console.error('Error initiating stake:', error);
+          setStakingInProgress(false);
+          setPendingRoomCode(null);
+          setSelectedStakeAmount(null);
+        }
+      };
+
+      // Handle stake amount selection (preset buttons)
       modal.querySelectorAll('.stake-option').forEach(button => {
         button.onclick = async () => {
           const stakeAmount = button.getAttribute('data-amount');
@@ -341,6 +469,7 @@ const Welcome = ({ setGameState, savedUsername, onUsernameSet }) => {
           setStakingInProgress(true);
           setSelectedStakeAmount(stakeAmount);
           setPendingRoomCode(roomCode);
+          setStakingErrorMessage(null); // Clear any previous errors
 
           try {
             await stakeAsPlayer1(roomCode, stakeAmount);
@@ -409,15 +538,80 @@ const Welcome = ({ setGameState, savedUsername, onUsernameSet }) => {
         {stakingInProgress && (
           <div className="transaction-overlay">
             <div className="transaction-modal">
-              <h3>
-                {isStakingPending && 'Confirm Transaction in Wallet...'}
-                {isStakingConfirming && 'Transaction Confirming...'}
-              </h3>
-              <div className="transaction-spinner"></div>
-              <p>
-                {isStakingPending && 'Please confirm the transaction in your wallet'}
-                {isStakingConfirming && 'Waiting for blockchain confirmation'}
-              </p>
+              {stakingErrorMessage ? (
+                <>
+                  <h3 style={{ color: '#ff6b6b', marginBottom: '20px' }}>Transaction Failed</h3>
+                  <div style={{
+                    background: 'rgba(255, 107, 107, 0.1)',
+                    border: '1px solid #ff6b6b',
+                    borderRadius: '8px',
+                    padding: '15px',
+                    marginBottom: '20px',
+                    color: '#ff6b6b',
+                    fontSize: '0.9rem'
+                  }}>
+                    {stakingErrorMessage}
+                  </div>
+                  <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                    <button
+                      onClick={async () => {
+                        if (pendingRoomCode && selectedStakeAmount) {
+                          setStakingErrorMessage(null);
+                          try {
+                            await stakeAsPlayer1(pendingRoomCode, selectedStakeAmount);
+                          } catch (error) {
+                            console.error('Retry error:', error);
+                          }
+                        }
+                      }}
+                      style={{
+                        padding: '12px 24px',
+                        background: 'rgb(116,113,203)',
+                        color: '#000',
+                        border: 'none',
+                        borderRadius: '5px',
+                        cursor: 'pointer',
+                        fontFamily: 'Press Start 2P, monospace',
+                        fontSize: '0.8rem'
+                      }}
+                    >
+                      Retry
+                    </button>
+                    <button
+                      onClick={() => {
+                        setStakingInProgress(false);
+                        setStakingErrorMessage(null);
+                        setPendingRoomCode(null);
+                        setSelectedStakeAmount(null);
+                      }}
+                      style={{
+                        padding: '12px 24px',
+                        background: '#444',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '5px',
+                        cursor: 'pointer',
+                        fontFamily: 'Press Start 2P, monospace',
+                        fontSize: '0.8rem'
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h3>
+                    {isStakingPending && 'Confirm Transaction in Wallet...'}
+                    {isStakingConfirming && 'Transaction Confirming...'}
+                  </h3>
+                  <div className="transaction-spinner"></div>
+                  <p>
+                    {isStakingPending && 'Please confirm the transaction in your wallet'}
+                    {isStakingConfirming && 'Waiting for blockchain confirmation'}
+                  </p>
+                </>
+              )}
             </div>
           </div>
         )}

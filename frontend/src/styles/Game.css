@@ -6,8 +6,13 @@
   align-items: center;
   justify-content: center;
   position: relative;
-  cursor: none;
+  cursor: default;
   background-color: #000;
+  transition: cursor 0.3s ease;
+}
+
+.game-container.cursor-hidden {
+  cursor: none;
 }
 
 .score-board {

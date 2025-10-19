@@ -30,11 +30,13 @@ const MultiplayerGame = ({ username }) => {
   const [stakingData, setStakingData] = useState(null);
   const [isPlayer2Staking, setIsPlayer2Staking] = useState(false);
   const [stakingErrorMessage, setStakingErrorMessage] = useState(null);
+  const [isCursorHidden, setIsCursorHidden] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const containerRef = useRef(null);
   const prevGameDataRef = useRef(null);
   const isMounted = useRef(false);
+  const cursorTimeoutRef = useRef(null);
 
   // Web3 hooks
   const { address, isConnected } = useAccount();
@@ -90,7 +92,26 @@ const MultiplayerGame = ({ username }) => {
     ctx.fill();
   }, [gameData, isWaiting, roomCode]);
 
+  // Cursor auto-hide management
+  const resetCursorTimeout = useCallback(() => {
+    // Clear existing timeout
+    if (cursorTimeoutRef.current) {
+      clearTimeout(cursorTimeoutRef.current);
+    }
+
+    // Show cursor
+    setIsCursorHidden(false);
+
+    // Set new timeout to hide cursor after 3 seconds
+    cursorTimeoutRef.current = setTimeout(() => {
+      setIsCursorHidden(true);
+    }, 3000);
+  }, []);
+
   const handleMouseMove = useCallback((e) => {
+    // Reset cursor timeout on mouse move
+    resetCursorTimeout();
+
     if (!socketRef.current || isWaiting) return;
 
     const container = containerRef.current;
@@ -101,7 +122,7 @@ const MultiplayerGame = ({ username }) => {
     const clampedY = Math.max(-1, Math.min(1, relativeY));
 
     socketRef.current.emit('paddleMove', { position: clampedY });
-  }, [isWaiting]);
+  }, [isWaiting, resetCursorTimeout]);
 
   const handleTouchMove = useCallback((e) => {
     if (!socketRef.current || isWaiting) return;
@@ -459,6 +480,27 @@ const MultiplayerGame = ({ username }) => {
       container.removeEventListener('touchmove', handleTouchMove);
     };
   }, [handleMouseMove, handleTouchMove]);
+
+  // Apply cursor-hidden class when cursor should be hidden
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    if (isCursorHidden) {
+      container.classList.add('cursor-hidden');
+    } else {
+      container.classList.remove('cursor-hidden');
+    }
+  }, [isCursorHidden]);
+
+  // Cleanup cursor timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (cursorTimeoutRef.current) {
+        clearTimeout(cursorTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const handleLeaveGame = useCallback(() => {
     if (window.confirm('Are you sure you want to leave? You will forfeit the game.')) {

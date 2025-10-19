@@ -14,6 +14,7 @@ const MyWins = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [claimingGameId, setClaimingGameId] = useState(null);
+  const [claimErrorMessage, setClaimErrorMessage] = useState(null);
 
   const {
     claimPrize,
@@ -81,23 +82,48 @@ const MyWins = () => {
     }
   }, [isClaimSuccess, claimTxHash, claimingGameId, fetchWins]);
 
+  // Helper function to parse error messages
+  const getErrorMessage = (error) => {
+    if (!error) return 'Unknown error occurred';
+
+    const errorString = error.message || error.toString();
+
+    // User rejected the transaction
+    if (errorString.includes('User rejected') ||
+        errorString.includes('User denied') ||
+        errorString.includes('user rejected') ||
+        error.name === 'UserRejectedRequestError') {
+      return 'Transaction cancelled';
+    }
+
+    // Insufficient funds
+    if (errorString.includes('insufficient funds')) {
+      return 'Insufficient funds in your wallet';
+    }
+
+    // Generic transaction failure
+    return 'Transaction failed. Please try again.';
+  };
+
   // Handle claim error
   useEffect(() => {
     if (claimError) {
       console.error('Claim error:', claimError);
+      setClaimErrorMessage(getErrorMessage(claimError));
       setClaimingGameId(null);
-      alert(`Failed to claim prize: ${claimError.message || 'Unknown error'}`);
     }
   }, [claimError]);
 
   const handleClaimPrize = async (game) => {
     if (!game.winnerSignature) {
-      alert('Signature not available yet. Please try again later.');
+      setClaimErrorMessage('Signature not available yet. Please try again later.');
+      setClaimingGameId(game._id);
       return;
     }
 
     console.log('🎁 Claiming prize for room:', game.roomCode);
     setClaimingGameId(game._id);
+    setClaimErrorMessage(null); // Clear any previous errors
 
     try {
       await claimPrize(game.roomCode, game.winnerSignature);
@@ -141,15 +167,74 @@ const MyWins = () => {
       {claimingGameId && (
         <div className="transaction-overlay">
           <div className="transaction-modal">
-            <h3>
-              {isClaimPending && 'Confirm Transaction in Wallet...'}
-              {isClaimConfirming && 'Claiming Prize...'}
-            </h3>
-            <div className="transaction-spinner"></div>
-            <p>
-              {isClaimPending && 'Please confirm the transaction in your wallet'}
-              {isClaimConfirming && 'Waiting for blockchain confirmation'}
-            </p>
+            {claimErrorMessage ? (
+              <>
+                <h3 style={{ color: '#ff6b6b', marginBottom: '20px' }}>Transaction Failed</h3>
+                <div style={{
+                  background: 'rgba(255, 107, 107, 0.1)',
+                  border: '1px solid #ff6b6b',
+                  borderRadius: '8px',
+                  padding: '15px',
+                  marginBottom: '20px',
+                  color: '#ff6b6b',
+                  fontSize: '0.9rem'
+                }}>
+                  {claimErrorMessage}
+                </div>
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                  <button
+                    onClick={() => {
+                      const game = wins.find(w => w._id === claimingGameId);
+                      if (game) {
+                        handleClaimPrize(game);
+                      }
+                    }}
+                    style={{
+                      padding: '12px 24px',
+                      background: 'rgb(116,113,203)',
+                      color: '#000',
+                      border: 'none',
+                      borderRadius: '5px',
+                      cursor: 'pointer',
+                      fontFamily: 'Press Start 2P, monospace',
+                      fontSize: '0.8rem'
+                    }}
+                  >
+                    Retry
+                  </button>
+                  <button
+                    onClick={() => {
+                      setClaimingGameId(null);
+                      setClaimErrorMessage(null);
+                    }}
+                    style={{
+                      padding: '12px 24px',
+                      background: '#444',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '5px',
+                      cursor: 'pointer',
+                      fontFamily: 'Press Start 2P, monospace',
+                      fontSize: '0.8rem'
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3>
+                  {isClaimPending && 'Confirm Transaction in Wallet...'}
+                  {isClaimConfirming && 'Claiming Prize...'}
+                </h3>
+                <div className="transaction-spinner"></div>
+                <p>
+                  {isClaimPending && 'Please confirm the transaction in your wallet'}
+                  {isClaimConfirming && 'Waiting for blockchain confirmation'}
+                </p>
+              </>
+            )}
           </div>
         </div>
       )}

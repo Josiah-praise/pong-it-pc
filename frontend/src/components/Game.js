@@ -45,6 +45,7 @@ const Game = ({ username }) => {
   const [stakingData, setStakingData] = useState(null); // { roomCode, stakeAmount, player1Address }
   const [stakingInProgress, setStakingInProgress] = useState(false);
   const [waitingForPlayer2Stake, setWaitingForPlayer2Stake] = useState(false);
+  const [player2StakingErrorMessage, setPlayer2StakingErrorMessage] = useState(null);
 
   // Player2 staking hook
   const {
@@ -577,12 +578,35 @@ const Game = ({ username }) => {
     }
   }, [isPlayer2StakingSuccess, player2TxHash, stakingData, address, username]);
 
+  // Helper function to parse error messages
+  const getErrorMessage = (error) => {
+    if (!error) return 'Unknown error occurred';
+
+    const errorString = error.message || error.toString();
+
+    // User rejected the transaction
+    if (errorString.includes('User rejected') ||
+        errorString.includes('User denied') ||
+        errorString.includes('user rejected') ||
+        error.name === 'UserRejectedRequestError') {
+      return 'Transaction cancelled';
+    }
+
+    // Insufficient funds
+    if (errorString.includes('insufficient funds')) {
+      return 'Insufficient funds in your wallet';
+    }
+
+    // Generic transaction failure
+    return 'Transaction failed. Please try again.';
+  };
+
   // Handle Player2 staking errors
   useEffect(() => {
     if (player2StakingError) {
       console.error('Player 2 staking error:', player2StakingError);
+      setPlayer2StakingErrorMessage(getErrorMessage(player2StakingError));
       setStakingInProgress(false);
-      alert(`Transaction failed: ${player2StakingError.message || 'Unknown error'}`);
     }
   }, [player2StakingError]);
 
@@ -842,6 +866,7 @@ const Game = ({ username }) => {
                     <button
                       onClick={async () => {
                         setStakingInProgress(true);
+                        setPlayer2StakingErrorMessage(null); // Clear any previous errors
                         try {
                           await stakeAsPlayer2(stakingData.roomCode, stakingData.stakeAmount);
                         } catch (error) {
@@ -884,6 +909,75 @@ const Game = ({ username }) => {
                     </button>
                   </div>
                 )}
+              </>
+            ) : player2StakingErrorMessage ? (
+              <>
+                <h3 style={{
+                  fontFamily: 'Press Start 2P, monospace',
+                  fontSize: '1rem',
+                  color: '#ff6b6b',
+                  marginBottom: '20px'
+                }}>
+                  Transaction Failed
+                </h3>
+                <div style={{
+                  background: 'rgba(255, 107, 107, 0.1)',
+                  border: '1px solid #ff6b6b',
+                  borderRadius: '8px',
+                  padding: '15px',
+                  marginBottom: '20px',
+                  color: '#ff6b6b',
+                  fontSize: '0.8rem',
+                  fontFamily: 'Press Start 2P, monospace',
+                  lineHeight: '1.5'
+                }}>
+                  {player2StakingErrorMessage}
+                </div>
+                <div style={{ display: 'flex', gap: '15px', justifyContent: 'center' }}>
+                  <button
+                    onClick={async () => {
+                      setPlayer2StakingErrorMessage(null);
+                      try {
+                        await stakeAsPlayer2(stakingData.roomCode, stakingData.stakeAmount);
+                      } catch (error) {
+                        console.error('Retry error:', error);
+                      }
+                    }}
+                    style={{
+                      fontFamily: 'Press Start 2P, monospace',
+                      fontSize: '0.8rem',
+                      padding: '12px 24px',
+                      background: 'rgb(116,113,203)',
+                      color: '#000',
+                      border: 'none',
+                      borderRadius: '8px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Retry
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowStakingModal(false);
+                      setStakingData(null);
+                      setStakingInProgress(false);
+                      setPlayer2StakingErrorMessage(null);
+                      navigate('/');
+                    }}
+                    style={{
+                      fontFamily: 'Press Start 2P, monospace',
+                      fontSize: '0.8rem',
+                      padding: '12px 24px',
+                      background: '#444',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '8px',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
               </>
             ) : (
               <>
