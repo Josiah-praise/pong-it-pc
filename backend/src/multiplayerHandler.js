@@ -271,22 +271,24 @@ class MultiplayerHandler {
       loser.name
     );
 
-    // Check if this is a staked match and update game record
+    // Save game result to database (both staked and casual games)
     try {
       const fetch = require('node-fetch');
       const playerServiceUrl = process.env.PLAYER_SERVICE_URL || 'http://localhost:5001';
-      const response = await fetch(`${playerServiceUrl}/games/${roomCode}`);
 
-      if (response.ok) {
-        const gameRecord = await response.json();
+      // Determine which player won (player1 or player2)
+      const winnerRole = game.players[0].socketId === winner.socketId ? 'player1' : 'player2';
 
+      // Check if game record already exists
+      const checkResponse = await fetch(`${playerServiceUrl}/games/${roomCode}`);
+
+      if (checkResponse.ok) {
+        const gameRecord = await checkResponse.json();
+
+        // Update existing game (staked games)
         if (gameRecord.isStaked) {
           console.log(`💎 Staked match ended. Updating game record with winner...`);
 
-          // Determine which player won (player1 or player2)
-          const winnerRole = game.players[0].socketId === winner.socketId ? 'player1' : 'player2';
-
-          // Update game record with winner (includes automatic signature generation)
           const updateResponse = await fetch(`${playerServiceUrl}/games`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -308,11 +310,58 @@ class MultiplayerHandler {
           } else {
             console.error(`❌ Failed to update staked game ${roomCode}:`, await updateResponse.text());
           }
+        } else {
+          // Update existing casual game
+          console.log(`🎮 Casual match ended. Updating game record with winner...`);
+
+          const updateResponse = await fetch(`${playerServiceUrl}/games`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              roomCode,
+              winner: winnerRole,
+              score: game.score || [0, 0],
+              status: 'finished'
+            })
+          });
+
+          if (updateResponse.ok) {
+            console.log(`✅ Casual game ${roomCode} updated with winner: ${winnerRole}`);
+          }
+        }
+      } else {
+        // No existing record - create new casual game
+        console.log(`🎮 Creating casual game record for room: ${roomCode}`);
+
+        const createResponse = await fetch(`${playerServiceUrl}/games`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            roomCode,
+            player1: {
+              name: game.players[0].name,
+              rating: ratingResult ? ratingResult.winner.oldRating : 1000
+            },
+            player2: {
+              name: game.players[1].name,
+              rating: ratingResult ? ratingResult.loser.oldRating : 1000
+            },
+            winner: winnerRole,
+            score: game.score || [0, 0],
+            isStaked: false,
+            status: 'finished'
+          })
+        });
+
+        if (createResponse.ok) {
+          console.log(`✅ Casual game ${roomCode} saved to database`);
+        } else {
+          console.error(`❌ Failed to save casual game ${roomCode}:`, await createResponse.text());
         }
       }
     } catch (error) {
-      console.error('Error updating staked game record:', error);
-      // Continue with normal game end flow even if update fails
+      console.error('Error saving game record:', error);
+      // Continue with normal game end flow even if save fails
     }
 
     const gameOverData = {

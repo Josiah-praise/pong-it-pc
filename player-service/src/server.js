@@ -191,7 +191,8 @@ app.post('/games', async (req, res) => {
       player1Address,
       player2Address,
       player1TxHash,
-      player2TxHash
+      player2TxHash,
+      status
     } = req.body;
 
     if (!roomCode) {
@@ -233,7 +234,7 @@ app.post('/games', async (req, res) => {
         player2Address: player2Address?.toLowerCase(),
         player1TxHash,
         player2TxHash,
-        status: player2 ? 'playing' : 'waiting'
+        status: status || (player2 ? 'playing' : 'waiting')
       });
     }
 
