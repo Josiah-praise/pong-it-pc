@@ -269,21 +269,37 @@ app.post('/games', async (req, res) => {
 // Get user's wins (for claiming interface)
 app.get('/games/my-wins', async (req, res) => {
   try {
-    const { address } = req.query;
+    const { address, limit = 20, offset = 0 } = req.query;
 
     if (!address) {
       return res.status(400).json({ error: 'Address is required' });
     }
 
-    const games = await Game.find({
+    const query = {
       winnerAddress: address.toLowerCase(),
       isStaked: true,
       status: 'finished'
-    })
+    };
+
+    // Fetch games with pagination
+    const games = await Game.find(query)
       .sort({ endedAt: -1 })
+      .skip(parseInt(offset))
+      .limit(parseInt(limit))
       .lean();
 
-    res.status(200).json(games);
+    // Get total count for pagination
+    const totalGames = await Game.countDocuments(query);
+
+    res.status(200).json({
+      games,
+      pagination: {
+        total: totalGames,
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        hasMore: (parseInt(offset) + parseInt(limit)) < totalGames
+      }
+    });
   } catch (error) {
     console.error('Error fetching user wins:', error);
     res.status(500).json({ error: 'Failed to fetch wins' });

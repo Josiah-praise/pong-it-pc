@@ -15,6 +15,7 @@ const MyWins = () => {
   const [error, setError] = useState(null);
   const [claimingGameId, setClaimingGameId] = useState(null);
   const [claimErrorMessage, setClaimErrorMessage] = useState(null);
+  const [pagination, setPagination] = useState({ total: 0, limit: 20, offset: 0, hasMore: false });
 
   const {
     claimPrize,
@@ -33,21 +34,35 @@ const MyWins = () => {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(`${PLAYER_SERVICE_URL}/games/my-wins?address=${address}`);
+      const params = new URLSearchParams({
+        address,
+        limit: pagination.limit,
+        offset: pagination.offset
+      });
+
+      const response = await fetch(`${PLAYER_SERVICE_URL}/games/my-wins?${params}`);
 
       if (!response.ok) {
         throw new Error(`Failed to fetch wins: ${response.status}`);
       }
 
       const data = await response.json();
-      setWins(data);
+      setWins(data.games);
+      setPagination(data.pagination);
     } catch (err) {
       console.error('Error fetching wins:', err);
       setError('Failed to load your wins. Please try again.');
     } finally {
       setLoading(false);
     }
-  }, [address]);
+  }, [address, pagination.limit, pagination.offset]);
+
+  const loadMore = () => {
+    setPagination(prev => ({
+      ...prev,
+      offset: prev.offset + prev.limit
+    }));
+  };
 
   useEffect(() => {
     if (isConnected && address) {
@@ -240,7 +255,7 @@ const MyWins = () => {
       )}
 
       <div className="wins-content">
-        {loading ? (
+        {loading && pagination.offset === 0 ? (
           <div className="loading">Loading your wins...</div>
         ) : error ? (
           <div className="error-message">{error}</div>
@@ -253,68 +268,85 @@ const MyWins = () => {
             </button>
           </div>
         ) : (
-          <div className="wins-list">
-            {wins.map((game) => (
-              <div key={game._id} className={`win-card ${game.claimed ? 'claimed' : 'claimable'}`}>
-                <div className="win-header">
-                  <span className="room-code">Room: {game.roomCode}</span>
-                  <span className={`status-badge ${game.claimed ? 'claimed' : 'unclaimed'}`}>
-                    {game.claimed ? '✅ Claimed' : '💎 Claimable'}
-                  </span>
-                </div>
-
-                <div className="win-details">
-                  <div className="detail-row">
-                    <span className="detail-label">Prize Amount:</span>
-                    <span className="detail-value prize-amount">
-                      {game.stakeAmount} ETH
+          <>
+            <div className="wins-list">
+              {wins.map((game) => (
+                <div key={game._id} className={`win-card ${game.claimed ? 'claimed' : 'claimable'}`}>
+                  <div className="win-header">
+                    <span className="room-code">Room: {game.roomCode}</span>
+                    <span className={`status-badge ${game.claimed ? 'claimed' : 'unclaimed'}`}>
+                      {game.claimed ? '✅ Claimed' : '💎 Claimable'}
                     </span>
                   </div>
 
-                  <div className="detail-row">
-                    <span className="detail-label">Final Score:</span>
-                    <span className="detail-value">
-                      {game.score && game.score.player1 !== undefined && game.score.player2 !== undefined
-                        ? `${game.score.player1} - ${game.score.player2}`
-                        : 'N/A'}
-                    </span>
-                  </div>
-
-                  <div className="detail-row">
-                    <span className="detail-label">Won At:</span>
-                    <span className="detail-value">
-                      {formatDate(game.endedAt)}
-                    </span>
-                  </div>
-
-                  {game.claimed && game.claimTxHash && (
+                  <div className="win-details">
                     <div className="detail-row">
-                      <span className="detail-label">Claim Tx:</span>
-                      <span className="detail-value tx-hash">
-                        <a
-                          href={`https://sepolia-blockscout.lisk.com/tx/${game.claimTxHash}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          {game.claimTxHash.slice(0, 10)}...{game.claimTxHash.slice(-8)}
-                        </a>
+                      <span className="detail-label">Prize Amount:</span>
+                      <span className="detail-value prize-amount">
+                        {game.stakeAmount} ETH
                       </span>
                     </div>
+
+                    <div className="detail-row">
+                      <span className="detail-label">Final Score:</span>
+                      <span className="detail-value">
+                        {game.score && game.score.player1 !== undefined && game.score.player2 !== undefined
+                          ? `${game.score.player1} - ${game.score.player2}`
+                          : 'N/A'}
+                      </span>
+                    </div>
+
+                    <div className="detail-row">
+                      <span className="detail-label">Won At:</span>
+                      <span className="detail-value">
+                        {formatDate(game.endedAt)}
+                      </span>
+                    </div>
+
+                    {game.claimed && game.claimTxHash && (
+                      <div className="detail-row">
+                        <span className="detail-label">Claim Tx:</span>
+                        <span className="detail-value tx-hash">
+                          <a
+                            href={`https://sepolia-blockscout.lisk.com/tx/${game.claimTxHash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            {game.claimTxHash.slice(0, 10)}...{game.claimTxHash.slice(-8)}
+                          </a>
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {!game.claimed && (
+                    <button
+                      onClick={() => handleClaimPrize(game)}
+                      className="claim-button"
+                      disabled={claimingGameId === game._id || !game.winnerSignature}
+                    >
+                      {!game.winnerSignature ? 'Signature Pending...' : 'Claim Prize'}
+                    </button>
                   )}
                 </div>
+              ))}
+            </div>
 
-                {!game.claimed && (
-                  <button
-                    onClick={() => handleClaimPrize(game)}
-                    className="claim-button"
-                    disabled={claimingGameId === game._id || !game.winnerSignature}
-                  >
-                    {!game.winnerSignature ? 'Signature Pending...' : 'Claim Prize'}
-                  </button>
-                )}
+            {pagination.hasMore && (
+              <div className="load-more-section">
+                <button
+                  onClick={loadMore}
+                  className="load-more-button"
+                  disabled={loading}
+                >
+                  {loading ? 'Loading...' : 'Load More'}
+                </button>
+                <p className="pagination-info">
+                  Showing {Math.min(pagination.offset + wins.length, pagination.total)} of {pagination.total} wins
+                </p>
               </div>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </div>
     </div>
