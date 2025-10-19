@@ -1,5 +1,5 @@
 // PongEscrow Contract Configuration
-export const PONG_ESCROW_ADDRESS = '0x3a067beD82789135caCE3A024B96248505fF883B';
+export const PONG_ESCROW_ADDRESS = '0xFe9EFA4029D20E3d6ba973BF775815A7eA94dFFC';
 
 export const PONG_ESCROW_ABI = [
   // View functions

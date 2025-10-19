@@ -637,6 +637,25 @@ body .welcome,
   box-shadow: 0 0 20px rgba(253, 208, 64, 0.5);
 }
 
+.game-history-btn {
+  background: rgba(116, 113, 203, 0.2);
+  color: rgb(116, 113, 203);
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9rem;
+  border: 2px solid rgb(116, 113, 203);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Press Start 2P', monospace;
+  white-space: nowrap;
+}
+
+.game-history-btn:hover {
+  background: rgba(116, 113, 203, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 0 20px rgba(116, 113, 203, 0.5);
+}
+
 /* Staked Match Button */
 .mode-button.staked-match {
   background: linear-gradient(135deg, #7b3fe4 0%, #9d5ff5 100%);

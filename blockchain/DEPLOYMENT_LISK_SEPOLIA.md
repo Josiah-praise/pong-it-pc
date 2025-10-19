@@ -2,7 +2,7 @@
 
 ## Deployment Summary
 
-**Deployment Date**: 2025-10-17
+**Deployment Date**: 2025-10-19 (Latest)
 **Network**: Lisk Sepolia Testnet
 **Chain ID**: 4202
 
@@ -11,7 +11,7 @@
 | Parameter | Value |
 |-----------|-------|
 | **Contract Name** | PongEscrow |
-| **Contract Address** | `0x3a067beD82789135caCE3A024B96248505fF883B` |
+| **Contract Address** | `0xFe9EFA4029D20E3d6ba973BF775815A7eA94dFFC` |
 | **Deployer Address** | `0x9ad6b669EB355D4924eCa26ddF0636F4897aEF22` |
 | **Backend Oracle** | `0x9ad6b669EB355D4924eCa26ddF0636F4897aEF22` |
 | **Deployment Cost** | ~0.000002 ETH |
@@ -19,14 +19,14 @@
 
 ## Explorer Links
 
-- **Contract**: https://sepolia-blockscout.lisk.com/address/0x3a067bed82789135cace3a024b96248505ff883b
+- **Contract**: https://sepolia-blockscout.lisk.com/address/0xFe9EFA4029D20E3d6ba973BF775815A7eA94dFFC
 - **Deployer**: https://sepolia-blockscout.lisk.com/address/0x9ad6b669eb355d4924eca26ddf0636f4897aef22
 
 ## Verification Status
 
-✅ **Verified on Blockscout**
-- Verification GUID: `3a067bed82789135cace3a024b96248505ff883b68f216d9`
-- Verification URL: https://sepolia-blockscout.lisk.com/address/0x3a067bed82789135cace3a024b96248505ff883b
+⏳ **Pending Verification**
+- Contract deployed at: `0xFe9EFA4029D20E3d6ba973BF775815A7eA94dFFC`
+- Verification pending on Blockscout
 
 ## Network Configuration
 
@@ -58,7 +58,7 @@
 
 ```bash
 # Check if room code is available
-cast call 0x3a067beD82789135caCE3A024B96248505fF883B \
+cast call 0xFe9EFA4029D20E3d6ba973BF775815A7eA94dFFC \
   "isRoomCodeAvailable(string)(bool)" \
   "ABC123" \
   --rpc-url https://rpc.sepolia-api.lisk.com
@@ -67,7 +67,7 @@ cast call 0x3a067beD82789135caCE3A024B96248505fF883B \
 # https://sepolia-faucet.lisk.com/
 
 # Create a match (player 1 stakes 0.01 ETH)
-cast send 0x3a067beD82789135caCE3A024B96248505fF883B \
+cast send 0xFe9EFA4029D20E3d6ba973BF775815A7eA94dFFC \
   "stakeAsPlayer1(string)" \
   "ABC123" \
   --value 0.01ether \
@@ -124,7 +124,7 @@ const abi = [
 const provider = new ethers.providers.JsonRpcProvider("https://rpc.sepolia-api.lisk.com");
 const signer = provider.getSigner(); // MetaMask or other wallet
 const contract = new ethers.Contract(
-    "0x3a067beD82789135caCE3A024B96248505fF883B",
+    "0xFe9EFA4029D20E3d6ba973BF775815A7eA94dFFC",
     abi,
     signer
 );
@@ -144,7 +144,7 @@ console.log('Prize claimed successfully!');
 
 ```bash
 # Add to backend/.env
-CONTRACT_ADDRESS=0x3a067beD82789135caCE3A024B96248505fF883B
+CONTRACT_ADDRESS=0xFe9EFA4029D20E3d6ba973BF775815A7eA94dFFC
 LISK_RPC_URL=https://rpc.sepolia-api.lisk.com
 BACKEND_ORACLE_PRIVATE_KEY=0xba5a54fa02384c39545b62e736824b8f0147b1a072da0ee01936981c4d31da46
 CHAIN_ID=4202
@@ -175,4 +175,5 @@ CHAIN_ID=4202
 - **Block Explorer**: https://sepolia-blockscout.lisk.com
 
 ---
-*Generated: 2025-10-17*
+*Last Updated: 2025-10-19*
+*Note: Contract redeployed on 2025-10-19 for clean testing environment*

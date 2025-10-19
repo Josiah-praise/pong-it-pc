@@ -362,6 +362,11 @@ const Welcome = ({ setGameState, savedUsername, onUsernameSet }) => {
         <button onClick={() => open()} className="connect-wallet-btn">
           {isConnected ? `${address?.slice(0, 6)}...${address?.slice(-4)}` : 'Connect Wallet'}
         </button>
+        {savedUsername && (
+          <button onClick={() => navigate('/game-history')} className="game-history-btn">
+            📊 History
+          </button>
+        )}
         {isConnected && (
           <button onClick={() => navigate('/my-wins')} className="my-wins-btn">
             🏆 My Wins

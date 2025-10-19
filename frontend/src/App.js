@@ -5,6 +5,7 @@ import MultiplayerGame from './components/MultiplayerGame';
 import SpectatorView from './components/SpectatorView';
 import GameOver from './components/GameOver';
 import MyWins from './components/MyWins';
+import GameHistory from './components/GameHistory';
 import { Web3Provider } from './components/Web3Provider';
 import './styles/App.css';
 import { STORAGE_KEY } from './constants';
@@ -79,6 +80,10 @@ function App() {
             <Route
               path="/my-wins"
               element={<MyWins />}
+            />
+            <Route
+              path="/game-history"
+              element={<GameHistory savedUsername={username} />}
             />
           </Routes>
         </div>

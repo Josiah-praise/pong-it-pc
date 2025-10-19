@@ -24,15 +24,28 @@ const gameSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
+const playerSchema = new mongoose.Schema({
+  name: { type: String, required: true, unique: true },
+  rating: { type: Number, default: 1000 },
+  gamesPlayed: { type: Number, default: 0 },
+  wins: { type: Number, default: 0 },
+  losses: { type: Number, default: 0 },
+  lastActive: { type: Date, default: Date.now }
+});
+
 const Game = mongoose.model('Game', gameSchema);
+const Player = mongoose.model('Player', playerSchema);
 
 async function clearDatabase() {
   try {
     await mongoose.connect(process.env.MONGODB_URI);
     console.log('✅ Connected to MongoDB');
 
-    const result = await Game.deleteMany({});
-    console.log(`🗑️  Deleted ${result.deletedCount} game records`);
+    const gamesResult = await Game.deleteMany({});
+    console.log(`🗑️  Deleted ${gamesResult.deletedCount} game records`);
+
+    const playersResult = await Player.deleteMany({});
+    console.log(`🗑️  Deleted ${playersResult.deletedCount} player records`);
 
     console.log('✅ Database cleared successfully');
     await mongoose.connection.close();

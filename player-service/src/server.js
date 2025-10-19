@@ -308,6 +308,129 @@ app.post('/games/:gameId/claimed', async (req, res) => {
   }
 });
 
+// Get player game history with filters
+app.get('/games/player/:playerName/history', async (req, res) => {
+  try {
+    const { playerName } = req.params;
+    const {
+      filter = 'all',        // all, wins, losses
+      staked,                // true, false, or undefined (all)
+      limit = 50,
+      offset = 0
+    } = req.query;
+
+    if (!playerName) {
+      return res.status(400).json({ error: 'Player name is required' });
+    }
+
+    // Build the query
+    const query = {
+      status: 'finished', // Only finished games
+      $or: [
+        { 'player1.name': playerName },
+        { 'player2.name': playerName }
+      ]
+    };
+
+    // Filter by staked/unstaked
+    if (staked !== undefined) {
+      query.isStaked = staked === 'true';
+    }
+
+    // Filter by wins/losses
+    if (filter === 'wins') {
+      query.winner = { $exists: true };
+      query.$or = [
+        { 'player1.name': playerName, winner: 'player1' },
+        { 'player2.name': playerName, winner: 'player2' }
+      ];
+    } else if (filter === 'losses') {
+      query.winner = { $exists: true };
+      query.$or = [
+        { 'player1.name': playerName, winner: 'player2' },
+        { 'player2.name': playerName, winner: 'player1' }
+      ];
+    }
+
+    // Fetch games with pagination
+    const games = await Game.find(query)
+      .sort({ endedAt: -1, createdAt: -1 })
+      .skip(parseInt(offset))
+      .limit(parseInt(limit))
+      .lean();
+
+    // Get total count for pagination
+    const totalGames = await Game.countDocuments(query);
+
+    // Calculate stats
+    const allGamesQuery = {
+      status: 'finished',
+      $or: [
+        { 'player1.name': playerName },
+        { 'player2.name': playerName }
+      ]
+    };
+
+    const allGames = await Game.find(allGamesQuery).lean();
+
+    const stats = {
+      totalGames: allGames.length,
+      wins: allGames.filter(g =>
+        (g.player1?.name === playerName && g.winner === 'player1') ||
+        (g.player2?.name === playerName && g.winner === 'player2')
+      ).length,
+      losses: allGames.filter(g =>
+        (g.player1?.name === playerName && g.winner === 'player2') ||
+        (g.player2?.name === playerName && g.winner === 'player1')
+      ).length,
+      stakedGames: allGames.filter(g => g.isStaked).length,
+      totalEarnings: allGames
+        .filter(g =>
+          g.isStaked &&
+          g.claimed &&
+          ((g.player1?.name === playerName && g.winner === 'player1') ||
+           (g.player2?.name === playerName && g.winner === 'player2'))
+        )
+        .reduce((sum, g) => sum + parseFloat(g.stakeAmount || 0), 0)
+    };
+
+    stats.winRate = stats.totalGames > 0
+      ? ((stats.wins / stats.totalGames) * 100).toFixed(1)
+      : 0;
+
+    // Transform games for frontend
+    const gamesWithDetails = games.map(game => ({
+      ...game,
+      opponent: game.player1?.name === playerName
+        ? game.player2?.name
+        : game.player1?.name,
+      result: !game.winner ? 'draw' :
+        (game.player1?.name === playerName && game.winner === 'player1') ||
+        (game.player2?.name === playerName && game.winner === 'player2')
+          ? 'win' : 'loss',
+      finalScore: game.score ?
+        (game.player1?.name === playerName
+          ? `${game.score.player1}-${game.score.player2}`
+          : `${game.score.player2}-${game.score.player1}`)
+        : 'N/A'
+    }));
+
+    res.status(200).json({
+      games: gamesWithDetails,
+      stats,
+      pagination: {
+        total: totalGames,
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        hasMore: (parseInt(offset) + parseInt(limit)) < totalGames
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching game history:', error);
+    res.status(500).json({ error: 'Failed to fetch game history' });
+  }
+});
+
 // Get game by room code
 app.get('/games/:roomCode', async (req, res) => {
   try {
