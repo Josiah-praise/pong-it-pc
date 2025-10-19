@@ -38,6 +38,11 @@ const MultiplayerGame = ({ username }) => {
   const isMounted = useRef(false);
   const cursorTimeoutRef = useRef(null);
 
+  // Keyboard control state
+  const [keyboardPaddleY, setKeyboardPaddleY] = useState(0);
+  const keysPressed = useRef({ ArrowUp: false, ArrowDown: false });
+  const keyboardIntervalRef = useRef(null);
+
   // Web3 hooks
   const { address, isConnected } = useAccount();
   const {
@@ -142,6 +147,58 @@ const MultiplayerGame = ({ username }) => {
       socketRef.current.emit('paddleMove', { position: clampedY });
     }
   }, [isWaiting]);
+
+  // Keyboard controls
+  const handleKeyDown = useCallback((e) => {
+    if (isWaiting || !socketRef.current) return;
+
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      e.preventDefault(); // Prevent page scrolling
+      keysPressed.current[e.key] = true;
+
+      // Start keyboard movement if not already running
+      if (!keyboardIntervalRef.current) {
+        keyboardIntervalRef.current = setInterval(() => {
+          setKeyboardPaddleY((prevY) => {
+            const MOVE_SPEED = 0.05; // Adjust speed as needed
+            let newY = prevY;
+
+            if (keysPressed.current.ArrowUp) {
+              newY -= MOVE_SPEED;
+            }
+            if (keysPressed.current.ArrowDown) {
+              newY += MOVE_SPEED;
+            }
+
+            // Clamp position between -1 and 1
+            newY = Math.max(-1, Math.min(1, newY));
+
+            // Emit paddle position to server
+            if (socketRef.current) {
+              socketRef.current.emit('paddleMove', { position: newY });
+            }
+
+            return newY;
+          });
+        }, 16); // ~60fps
+      }
+    }
+  }, [isWaiting]);
+
+  const handleKeyUp = useCallback((e) => {
+    if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      keysPressed.current[e.key] = false;
+
+      // Stop keyboard movement if no keys are pressed
+      if (!keysPressed.current.ArrowUp && !keysPressed.current.ArrowDown) {
+        if (keyboardIntervalRef.current) {
+          clearInterval(keyboardIntervalRef.current);
+          keyboardIntervalRef.current = null;
+        }
+      }
+    }
+  }, []);
 
   const handlePauseGame = useCallback(() => {
     if (socketRef.current && !isPaused) {
@@ -481,6 +538,23 @@ const MultiplayerGame = ({ username }) => {
     };
   }, [handleMouseMove, handleTouchMove]);
 
+  // Keyboard event listeners
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+
+      // Cleanup keyboard interval on unmount
+      if (keyboardIntervalRef.current) {
+        clearInterval(keyboardIntervalRef.current);
+        keyboardIntervalRef.current = null;
+      }
+    };
+  }, [handleKeyDown, handleKeyUp]);
+
   // Apply cursor-hidden class when cursor should be hidden
   useEffect(() => {
     const container = containerRef.current;
@@ -535,21 +609,37 @@ const MultiplayerGame = ({ username }) => {
       </div>
 
       {!isWaiting && (
-        <div className="game-controls">
-          <button
-            onClick={handlePauseGame}
-            disabled={isPaused || pausesRemaining <= 0}
-            className="control-btn pause-btn"
-          >
-            Pause ({pausesRemaining})
-          </button>
-          <button
-            onClick={handleForfeitGame}
-            className="control-btn forfeit-btn"
-          >
-            Forfeit
-          </button>
-        </div>
+        <>
+          <div className="controls-hint" style={{
+            position: 'absolute',
+            top: '10px',
+            right: '10px',
+            fontSize: '12px',
+            color: 'rgba(255, 255, 255, 0.6)',
+            fontFamily: 'monospace',
+            textAlign: 'right',
+            lineHeight: '1.4'
+          }}>
+            <div>🎮 Controls:</div>
+            <div>↑↓ Arrow Keys</div>
+            <div>or Mouse</div>
+          </div>
+          <div className="game-controls">
+            <button
+              onClick={handlePauseGame}
+              disabled={isPaused || pausesRemaining <= 0}
+              className="control-btn pause-btn"
+            >
+              Pause ({pausesRemaining})
+            </button>
+            <button
+              onClick={handleForfeitGame}
+              className="control-btn forfeit-btn"
+            >
+              Forfeit
+            </button>
+          </div>
+        </>
       )}
 
       {isPaused && (
