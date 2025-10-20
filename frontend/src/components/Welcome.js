@@ -141,8 +141,8 @@ const Welcome = ({ setGameState, savedUsername, onUsernameSet }) => {
     if (isStakingSuccess && pendingRoomCode && stakingTxHash) {
       console.log('✅ All conditions met! Staking successful! Creating game record...');
 
-      // Notify player-service about the staked match
-      fetch(`${process.env.REACT_APP_PLAYER_SERVICE_URL || 'http://localhost:5001'}/games`, {
+      // Notify backend about the staked match
+      fetch(`${BACKEND_URL}/games`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

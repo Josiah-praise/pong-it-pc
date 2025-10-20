@@ -3,9 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAccount } from 'wagmi';
 import { useClaimPrize } from '../hooks/useContract';
 import { formatEther } from 'viem';
+import { BACKEND_URL } from '../constants';
 import '../styles/MyWins.css';
-
-const PLAYER_SERVICE_URL = process.env.REACT_APP_PLAYER_SERVICE_URL || 'http://localhost:5001';
 
 const MyWins = () => {
   const navigate = useNavigate();
@@ -40,7 +39,7 @@ const MyWins = () => {
         offset: pagination.offset
       });
 
-      const response = await fetch(`${PLAYER_SERVICE_URL}/games/my-wins?${params}`);
+      const response = await fetch(`${BACKEND_URL}/games/my-wins?${params}`);
 
       if (!response.ok) {
         throw new Error(`Failed to fetch wins: ${response.status}`);
@@ -78,7 +77,7 @@ const MyWins = () => {
       console.log('✅ Prize claimed successfully!');
 
       // Mark game as claimed in database
-      fetch(`${PLAYER_SERVICE_URL}/games/${claimingGameId}/claimed`, {
+      fetch(`${BACKEND_URL}/games/${claimingGameId}/claimed`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ txHash: claimTxHash })

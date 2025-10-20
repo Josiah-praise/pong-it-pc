@@ -544,7 +544,7 @@ const Game = ({ username }) => {
       console.log('Player 2 staking successful! Updating game record...');
 
       // Update game record with Player 2 data
-      fetch(`${process.env.REACT_APP_PLAYER_SERVICE_URL || 'http://localhost:5001'}/games`, {
+      fetch(`${BACKEND_URL}/games`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

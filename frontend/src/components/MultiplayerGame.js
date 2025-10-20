@@ -257,8 +257,8 @@ const MultiplayerGame = ({ username }) => {
     if (isPlayer2StakingSuccess && player2StakingTxHash && stakingData) {
       console.log('✅ Player2 staking successful! Updating game record...');
 
-      // Update player-service with Player2's transaction
-      fetch(`${process.env.REACT_APP_PLAYER_SERVICE_URL || 'http://localhost:5001'}/games`, {
+      // Update backend with Player2's transaction
+      fetch(`${BACKEND_URL}/games`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

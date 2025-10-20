@@ -1,8 +1,7 @@
-const fetch = require('node-fetch');
+const Player = require('./models/Player');
 
 class LeaderboardManager {
-  constructor(playerServiceUrl) {
-    this.playerServiceUrl = playerServiceUrl || process.env.PLAYER_SERVICE_URL || 'http://player-service:5001';
+  constructor() {
     this.localCache = new Map();
     this.cacheTimeout = 5000;
   }
@@ -14,37 +13,31 @@ class LeaderboardManager {
         return cached.rating;
       }
 
-      const response = await fetch(`${this.playerServiceUrl}/players/${encodeURIComponent(playerName)}`);
+      // Try to find existing player
+      let player = await Player.findOne({ name: playerName });
 
-      if (response.status === 404) {
-        const createResponse = await fetch(`${this.playerServiceUrl}/players`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: playerName })
+      // Create new player if doesn't exist
+      if (!player) {
+        player = new Player({
+          name: playerName,
+          rating: 1000,
+          gamesPlayed: 0,
+          wins: 0,
+          losses: 0,
+          lastActive: new Date()
         });
-
-        const data = await createResponse.json();
-        const rating = data.rating || 1000;
-
-        this.localCache.set(playerName, {
-          rating,
-          timestamp: Date.now()
-        });
-
-        return rating;
-      } else if (response.ok) {
-        const data = await response.json();
-        const rating = data.rating;
-
-        this.localCache.set(playerName, {
-          rating,
-          timestamp: Date.now()
-        });
-
-        return rating;
+        await player.save();
+        console.log(`Created new player: ${playerName} with rating 1000`);
       }
 
-      return 1000;
+      const rating = player.rating;
+
+      this.localCache.set(playerName, {
+        rating,
+        timestamp: Date.now()
+      });
+
+      return rating;
     } catch (error) {
       console.error('Error fetching player rating:', error);
       return 1000;
@@ -53,22 +46,34 @@ class LeaderboardManager {
 
   async updatePlayerRating(playerName, newRating, gameResult) {
     try {
-      const response = await fetch(`${this.playerServiceUrl}/players/${encodeURIComponent(playerName)}/rating`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ newRating, gameResult })
+      const player = await Player.findOne({ name: playerName });
+
+      if (!player) {
+        console.error(`Player not found: ${playerName}`);
+        return;
+      }
+
+      player.rating = newRating;
+      player.lastActive = new Date();
+
+      // Update game stats if provided
+      if (gameResult) {
+        player.gamesPlayed += 1;
+        if (gameResult === 'win') {
+          player.wins += 1;
+        } else if (gameResult === 'loss') {
+          player.losses += 1;
+        }
+      }
+
+      await player.save();
+
+      this.localCache.set(playerName, {
+        rating: newRating,
+        timestamp: Date.now()
       });
 
-      if (response.ok) {
-        this.localCache.set(playerName, {
-          rating: newRating,
-          timestamp: Date.now()
-        });
-      }
-
-      if (!response.ok) {
-        console.error('Failed to update player rating:', response.statusText);
-      }
+      console.log(`Updated ${playerName} rating: ${newRating} (${gameResult})`);
     } catch (error) {
       console.error('Error updating player rating:', error);
     }
@@ -76,13 +81,12 @@ class LeaderboardManager {
 
   async getTopPlayers(limit = 10) {
     try {
-      const response = await fetch(`${this.playerServiceUrl}/players/top?limit=${limit}`);
+      const players = await Player.find()
+        .sort({ rating: -1 })
+        .limit(limit)
+        .lean();
 
-      if (response.ok) {
-        return await response.json();
-      }
-
-      return [];
+      return players;
     } catch (error) {
       console.error('Error fetching top players:', error);
       return [];

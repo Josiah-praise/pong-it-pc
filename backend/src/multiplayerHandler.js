@@ -1,6 +1,8 @@
 const RoomManager = require('./roomManager');
 const GameManager = require('./gameManager');
 const LeaderboardManager = require('./leaderboardManager');
+const Game = require('./models/Game');
+const signatureService = require('./services/signatureService');
 
 class MultiplayerHandler {
   constructor(io) {
@@ -135,15 +137,10 @@ class MultiplayerHandler {
 
     // Check if this is a staked match
     try {
-      const fetch = require('node-fetch');
-      const playerServiceUrl = process.env.PLAYER_SERVICE_URL || 'http://localhost:5001';
-      console.log(`📡 Checking for staked match: GET ${playerServiceUrl}/games/${roomCode}`);
-      const response = await fetch(`${playerServiceUrl}/games/${roomCode}`);
+      console.log(`📡 Checking for staked match in database: ${roomCode}`);
+      const gameRecord = await Game.findOne({ roomCode });
 
-      console.log(`📡 Response status: ${response.status}`);
-
-      if (response.ok) {
-        const gameRecord = await response.json();
+      if (gameRecord) {
         console.log(`📊 Game record:`, JSON.stringify(gameRecord, null, 2));
 
         if (gameRecord.isStaked && !gameRecord.player2TxHash) {
@@ -165,7 +162,7 @@ class MultiplayerHandler {
           console.log(`ℹ️  Not a staked match or Player 2 already staked. isStaked: ${gameRecord.isStaked}, player2TxHash: ${gameRecord.player2TxHash}`);
         }
       } else {
-        console.log(`ℹ️  No game record found (status ${response.status}) - proceeding with normal match`);
+        console.log(`ℹ️  No game record found - proceeding with normal match`);
       }
     } catch (error) {
       console.error('❌ Error checking for staked match:', error);
@@ -273,91 +270,74 @@ class MultiplayerHandler {
 
     // Save game result to database (both staked and casual games)
     try {
-      const fetch = require('node-fetch');
-      const playerServiceUrl = process.env.PLAYER_SERVICE_URL || 'http://localhost:5001';
-
       // Determine which player won (player1 or player2)
       const winnerRole = game.players[0].socketId === winner.socketId ? 'player1' : 'player2';
 
       // Check if game record already exists
-      const checkResponse = await fetch(`${playerServiceUrl}/games/${roomCode}`);
+      let gameRecord = await Game.findOne({ roomCode });
 
-      if (checkResponse.ok) {
-        const gameRecord = await checkResponse.json();
+      // Convert score array to object if needed
+      const scoreObject = game.score ? { player1: game.score[0], player2: game.score[1] } : { player1: 0, player2: 0 };
 
-        // Update existing game (staked games)
+      if (gameRecord) {
+        // Update existing game (staked or casual)
         if (gameRecord.isStaked) {
           console.log(`💎 Staked match ended. Updating game record with winner...`);
+        } else {
+          console.log(`🎮 Casual match ended. Updating game record with winner...`);
+        }
 
-          const updateResponse = await fetch(`${playerServiceUrl}/games`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              roomCode,
-              winner: winnerRole,
-              score: game.score || [0, 0],
-              stakeAmount: gameRecord.stakeAmount,
-              status: 'finished'
-            })
-          });
+        gameRecord.winner = winnerRole;
+        gameRecord.score = scoreObject;
+        gameRecord.status = 'finished';
+        gameRecord.endedAt = new Date();
+        gameRecord.winnerAddress = winnerRole === 'player1' ? gameRecord.player1Address : gameRecord.player2Address;
 
-          if (updateResponse.ok) {
-            const updatedGame = await updateResponse.json();
-            console.log(`✅ Staked game ${roomCode} updated with winner: ${winnerRole}`);
-            if (updatedGame.winnerSignature) {
-              console.log(`🔐 Winner signature generated:`, updatedGame.winnerSignature.slice(0, 20) + '...');
+        // Generate signature if staked and not already generated
+        if (gameRecord.isStaked && gameRecord.winnerAddress && !gameRecord.winnerSignature) {
+          if (signatureService.isReady()) {
+            try {
+              const signature = await signatureService.signWinner(
+                roomCode,
+                gameRecord.winnerAddress,
+                gameRecord.stakeAmount
+              );
+              gameRecord.winnerSignature = signature;
+              console.log(`✅ Winner signature generated for room: ${roomCode}`);
+              console.log(`🔐 Winner signature:`, signature.slice(0, 20) + '...');
+            } catch (error) {
+              console.error('❌ Failed to generate signature:', error);
             }
           } else {
-            console.error(`❌ Failed to update staked game ${roomCode}:`, await updateResponse.text());
-          }
-        } else {
-          // Update existing casual game
-          console.log(`🎮 Casual match ended. Updating game record with winner...`);
-
-          const updateResponse = await fetch(`${playerServiceUrl}/games`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              roomCode,
-              winner: winnerRole,
-              score: game.score || [0, 0],
-              status: 'finished'
-            })
-          });
-
-          if (updateResponse.ok) {
-            console.log(`✅ Casual game ${roomCode} updated with winner: ${winnerRole}`);
+            console.warn('⚠️  Signature service not ready, skipping signature generation');
           }
         }
+
+        await gameRecord.save();
+        console.log(`✅ Game ${roomCode} updated with winner: ${winnerRole}`);
       } else {
         // No existing record - create new casual game
         console.log(`🎮 Creating casual game record for room: ${roomCode}`);
 
-        const createResponse = await fetch(`${playerServiceUrl}/games`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            roomCode,
-            player1: {
-              name: game.players[0].name,
-              rating: ratingResult ? ratingResult.winner.oldRating : 1000
-            },
-            player2: {
-              name: game.players[1].name,
-              rating: ratingResult ? ratingResult.loser.oldRating : 1000
-            },
-            winner: winnerRole,
-            score: game.score || [0, 0],
-            isStaked: false,
-            status: 'finished'
-          })
+        gameRecord = new Game({
+          roomCode,
+          player1: {
+            name: game.players[0].name,
+            rating: ratingResult ? ratingResult.winner.oldRating : 1000
+          },
+          player2: {
+            name: game.players[1].name,
+            rating: ratingResult ? ratingResult.loser.oldRating : 1000
+          },
+          winner: winnerRole,
+          score: scoreObject,
+          isStaked: false,
+          status: 'finished',
+          endedAt: new Date()
         });
 
-        if (createResponse.ok) {
-          console.log(`✅ Casual game ${roomCode} saved to database`);
-        } else {
-          console.error(`❌ Failed to save casual game ${roomCode}:`, await createResponse.text());
-        }
+        await gameRecord.save();
+        console.log(`✅ Casual game ${roomCode} saved to database`);
       }
     } catch (error) {
       console.error('Error saving game record:', error);

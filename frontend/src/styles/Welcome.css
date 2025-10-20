@@ -656,16 +656,16 @@ body .welcome,
   box-shadow: 0 0 20px rgba(116, 113, 203, 0.5);
 }
 
-/* Staked Match Button */
+/* Staked Match Button - Match other buttons */
 .mode-button.staked-match {
-  background: linear-gradient(135deg, #7b3fe4 0%, #9d5ff5 100%);
+  background: rgb(116,113,203);
   position: relative;
   overflow: hidden;
 }
 
 .mode-button.staked-match:not(:disabled):hover {
-  background: linear-gradient(135deg, #6a2fcf 0%, #8c4ee4 100%);
-  box-shadow: 0 0 20px rgba(123, 63, 228, 0.5);
+  background: rgba(116,113,203, 0.8);
+  box-shadow: 0 0 15px rgba(116,113,203, 0.2);
 }
 
 .mode-button.staked-match:disabled {
@@ -675,7 +675,7 @@ body .welcome,
 }
 
 .mode-button.staked-match .button-icon {
-  filter: none;
+  filter: brightness(0);
 }
 
 /* Stake Modal */

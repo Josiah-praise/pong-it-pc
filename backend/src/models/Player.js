@@ -57,3 +57,5 @@ playerSchema.methods.updateGameStats = function(gameResult, newRating) {
 const Player = mongoose.model('Player', playerSchema);
 
 module.exports = Player;
+
+

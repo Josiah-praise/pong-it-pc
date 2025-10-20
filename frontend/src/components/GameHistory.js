@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { BACKEND_URL } from '../constants';
 import '../styles/GameHistory.css';
-
-const PLAYER_SERVICE_URL = process.env.REACT_APP_PLAYER_SERVICE_URL || 'http://localhost:5001';
 
 const GameHistory = ({ savedUsername }) => {
   const navigate = useNavigate();
@@ -33,7 +32,7 @@ const GameHistory = ({ savedUsername }) => {
       }
 
       const response = await fetch(
-        `${PLAYER_SERVICE_URL}/games/player/${savedUsername}/history?${params}`
+        `${BACKEND_URL}/games/player/${savedUsername}/history?${params}`
       );
 
       if (!response.ok) {
