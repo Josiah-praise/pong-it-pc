@@ -6,6 +6,7 @@ import '../styles/Game.css';
 import { BACKEND_URL, INITIAL_RATING } from '../constants';
 import soundManager from '../utils/soundManager';
 import { useStakeAsPlayer2 } from '../hooks/usePushContract';
+import { parseTransactionError } from '../utils/errorParser';
 
 interface MultiplayerGameProps {
   username: string | null
@@ -325,17 +326,8 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
       console.error('Player2 staking error:', player2StakingError);
       setIsPlayer2Staking(false);
 
-      let errorMsg = 'Transaction failed. Please try again.';
-      const errorMessage = player2StakingError.message || player2StakingError.toString();
-      if (errorMessage.includes('User rejected')) {
-        errorMsg = 'Transaction was rejected. Please try again when ready.';
-      } else if (errorMessage.includes('insufficient funds')) {
-        errorMsg = 'Insufficient funds in your wallet.';
-      } else if (errorMessage) {
-        errorMsg = errorMessage;
-      }
-
-      setStakingErrorMessage(errorMsg);
+      const parsedError = parseTransactionError(player2StakingError);
+      setStakingErrorMessage(parsedError.message);
     }
   }, [player2StakingError]);
 

@@ -6,6 +6,7 @@ import '../styles/Welcome.css';
 import { BACKEND_URL, STAKE_AMOUNTS } from '../constants';
 import soundManager from '../utils/soundManager';
 import { useStakeAsPlayer1 } from '../hooks/usePushContract';
+import { parseTransactionError } from '../utils/errorParser';
 
 interface WelcomeProps {
   setGameState: (state: any) => void
@@ -210,31 +211,12 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet 
     }
   }, [isStakingSuccess, pendingRoomCode, stakingTxHash, selectedStakeAmount, savedUsername, address, navigate, setGameState]);
 
-  // Helper function to parse error messages
-  const getErrorMessage = (error: any): string => {
-    if (!error) return 'Unknown error occurred';
-
-    const errorString = error.message || error.toString();
-
-    if (errorString.includes('User rejected') ||
-        errorString.includes('User denied') ||
-        errorString.includes('user rejected') ||
-        error.name === 'UserRejectedRequestError') {
-      return 'Transaction cancelled';
-    }
-
-    if (errorString.includes('insufficient funds')) {
-      return 'Insufficient funds in your wallet';
-    }
-
-    return 'Transaction failed. Please try again.';
-  };
-
   // Handle staking errors
   useEffect(() => {
     if (stakingError) {
       console.error('Staking error:', stakingError);
-      setStakingErrorMessage(getErrorMessage(stakingError));
+      const parsedError = parseTransactionError(stakingError);
+      setStakingErrorMessage(parsedError.message);
       setStakingInProgress(false);
     }
   }, [stakingError]);

@@ -6,6 +6,7 @@ import { useExecutorAddress } from '../hooks/useExecutorAddress';
 import { formatEther } from 'viem';
 import { BACKEND_URL, PUSH_CHAIN_TESTNET_EXPLORER } from '../constants';
 import '../styles/MyWins.css';
+import { parseTransactionError } from '../utils/errorParser';
 
 interface Game {
   _id: string
@@ -144,31 +145,12 @@ const MyWins: FC = () => {
     }
   }, [isClaimSuccess, claimTxHash, claimingGameId, fetchWins]);
 
-  // Helper function to parse error messages
-  const getErrorMessage = (error: any): string => {
-    if (!error) return 'Unknown error occurred';
-
-    const errorString = error.message || error.toString();
-
-    if (errorString.includes('User rejected') ||
-        errorString.includes('User denied') ||
-        errorString.includes('user rejected') ||
-        error.name === 'UserRejectedRequestError') {
-      return 'Transaction cancelled';
-    }
-
-    if (errorString.includes('insufficient funds')) {
-      return 'Insufficient funds in your wallet';
-    }
-
-    return 'Transaction failed. Please try again.';
-  };
-
   // Handle claim error
   useEffect(() => {
     if (claimError) {
       console.error('Claim error:', claimError);
-      setClaimErrorMessage(getErrorMessage(claimError));
+      const parsedError = parseTransactionError(claimError);
+      setClaimErrorMessage(parsedError.message);
       setClaimingGameId(null);
     }
   }, [claimError]);
