@@ -627,6 +627,34 @@ try {
       .map(({address}) => address);
     
     console.log('Server bound to addresses:', addresses);
+
+    // Self-ping mechanism to prevent cold starts on Render free tier
+    // Only runs when KEEP_RENDER_ALIVE environment variable is set
+    if (process.env.KEEP_RENDER_ALIVE === 'true') {
+      // Render free tier spins down after 15 minutes of inactivity
+      const PING_INTERVAL = 14 * 60 * 1000; // 14 minutes in milliseconds
+      setInterval(() => {
+        const http = require('http');
+        const options = {
+          hostname: 'localhost',
+          port: PORT,
+          path: '/health',
+          method: 'GET'
+        };
+
+        const req = http.request(options, (res) => {
+          console.log(`Self-ping successful: ${res.statusCode}`);
+        });
+
+        req.on('error', (error) => {
+          console.error('Self-ping failed:', error.message);
+        });
+
+        req.end();
+      }, PING_INTERVAL);
+
+      console.log(`Self-ping enabled: pinging /health every 14 minutes to prevent cold start`);
+    }
   });
 } catch (error) {
   console.error('Failed to start server:', error);
