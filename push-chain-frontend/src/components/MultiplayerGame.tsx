@@ -101,7 +101,7 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
 
     if (isWaiting) {
       ctx.font = '24px "Press Start 2P"';
-      ctx.fillStyle = 'rgb(116,113,203)';
+      ctx.fillStyle = '#DA76EC';
       ctx.textAlign = 'center';
       const dots = '.'.repeat(Math.floor(Date.now() / 500) % 4);
 
@@ -117,7 +117,7 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
     const { width, height } = ctx.canvas;
     ctx.imageSmoothingEnabled = true;
 
-    ctx.fillStyle = 'rgb(116,113,203)';
+    ctx.fillStyle = '#DA76EC';
     const paddleWidth = width * 0.02;
     const paddleHeight = height * 0.2;
 

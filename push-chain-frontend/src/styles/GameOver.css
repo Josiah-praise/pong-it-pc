@@ -16,7 +16,7 @@
   font-weight: bold;
   margin-bottom: 1.5rem;
   color: #fff;
-  text-shadow: 0 0 10px #7471cb, 0 0 20px #7471cb, 0 0 30px #7471cb;
+  text-shadow: 0 0 10px #DA76EC, 0 0 20px #DA76EC, 0 0 30px #DA76EC;
   letter-spacing: 3px;
   text-transform: uppercase;
   font-family: 'Press Start 2P', 'Courier New', monospace;
@@ -67,15 +67,15 @@
 .rematch-request {
   margin-top: 2rem;
   padding: 1.5rem;
-  background: rgba(116, 113, 203, 0.2);
-  border: 2px solid rgb(116, 113, 203);
+  background: rgba(218, 118, 236, 0.2);
+  border: 2px solid #DA76EC;
   border-radius: 8px;
 }
 
 .rematch-request p {
   font-family: 'Press Start 2P', monospace;
   font-size: 0.9rem;
-  color: rgb(116, 113, 203);
+  color: #DA76EC;
   margin-bottom: 1rem;
 }
 
@@ -93,14 +93,14 @@
 }
 
 .rematch-btn {
-  background: rgb(116, 113, 203);
+  background: #DA76EC;
   color: #000;
 }
 
 .rematch-btn:hover:not(:disabled) {
-  background: rgba(116, 113, 203, 0.8);
+  background: rgba(218, 118, 236, 0.8);
   transform: scale(1.05);
-  box-shadow: 0 0 15px rgb(116, 113, 203);
+  box-shadow: 0 0 15px #DA76EC;
 }
 
 .rematch-btn:disabled {
@@ -120,14 +120,14 @@
 }
 
 .accept-btn {
-  background: rgb(116, 113, 203);
+  background: #DA76EC;
   color: #000;
 }
 
 .accept-btn:hover {
-  background: rgba(116, 113, 203, 0.8);
+  background: rgba(218, 118, 236, 0.8);
   transform: scale(1.05);
-  box-shadow: 0 0 15px rgb(116, 113, 203);
+  box-shadow: 0 0 15px #DA76EC;
 }
 
 .decline-btn {

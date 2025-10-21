@@ -28,10 +28,10 @@
 .game-title {
   font-family: 'Press Start 2P', monospace;
   font-size: 4rem;
-  color: rgb(116,113,203);
-  text-shadow: 0 0 10px rgb(116,113,203),
-               0 0 20px rgb(116,113,203),
-               0 0 30px rgb(116,113,203);
+  color: #DA76EC;
+  text-shadow: 0 0 10px #DA76EC,
+               0 0 20px #DA76EC,
+               0 0 30px #DA76EC;
   animation: pulse 2s infinite;
   margin: 0;
   padding: 2rem;
@@ -40,20 +40,20 @@
 
 @keyframes pulse {
   0% {
-    text-shadow: 0 0 10px rgb(116,113,203),
-                 0 0 20px rgb(116,113,203),
-                 0 0 30px rgb(116,113,203);
+    text-shadow: 0 0 10px #DA76EC,
+                 0 0 20px #DA76EC,
+                 0 0 30px #DA76EC;
   }
   50% {
-    text-shadow: 0 0 15px rgb(116,113,203),
-                 0 0 25px rgb(116,113,203),
-                 0 0 35px rgb(116,113,203),
-                 0 0 45px rgb(116,113,203);
+    text-shadow: 0 0 15px #DA76EC,
+                 0 0 25px #DA76EC,
+                 0 0 35px #DA76EC,
+                 0 0 45px #DA76EC;
   }
   100% {
-    text-shadow: 0 0 10px rgb(116,113,203),
-                 0 0 20px rgb(116,113,203),
-                 0 0 30px rgb(116,113,203);
+    text-shadow: 0 0 10px #DA76EC,
+                 0 0 20px #DA76EC,
+                 0 0 30px #DA76EC;
   }
 }
 
@@ -71,7 +71,7 @@
 button {
   padding: 1rem 2rem;
   font-size: 1.5rem;
-  background: rgb(116,113,203);
+  background: #DA76EC;
   border: none;
   border-radius: 4px;
   color: #000;
@@ -83,26 +83,26 @@ button {
 
 button:hover {
   transform: scale(1.05);
-  background: rgba(116,113,203, 0.8);
-  box-shadow: 0 0 15px rgba(116,113,203, 0.2);
+  background: rgba(218, 118, 236, 0.8);
+  box-shadow: 0 0 15px rgba(218, 118, 236, 0.2);
 }
 
 .instructions, .rankings {
   background: rgba(255, 255, 255, 0.1);
   padding: 1.5rem;
   border-radius: 8px;
-  border: 2px solid rgb(116,113,203);
-  box-shadow: 0 0 10px rgba(116,113,203, 0.2);
+  border: 2px solid #DA76EC;
+  box-shadow: 0 0 10px rgba(218, 118, 236, 0.2);
 }
 
 dialog {
   padding: 2rem;
-  border: 2px solid rgb(116,113,203);
+  border: 2px solid #DA76EC;
   border-radius: 8px;
   background: #000;
   color: #fff;
   font-family: 'Press Start 2P', monospace;
-  box-shadow: 0 0 15px rgba(116, 113, 203, 0.2);
+  box-shadow: 0 0 15px rgba(218, 118, 236, 0.2);
 }
 
 dialog::backdrop {
@@ -115,7 +115,7 @@ dialog input {
   padding: 0.5rem;
   width: 100%;
   background: #111;
-  border: 1px solid rgb(116,113,203);
+  border: 1px solid #DA76EC;
   color: #fff;
   border-radius: 4px;
   font-family: 'Press Start 2P', monospace;
@@ -134,7 +134,7 @@ dialog button {
 }
 
 h2 {
-  color: rgb(116,113,203);
+  color: #DA76EC;
   margin-bottom: 1rem;
   font-family: 'Press Start 2P', monospace;
 }
@@ -169,7 +169,7 @@ p {
 
 /* Rankings title - match How to Play heading */
 .rankings h2 {
-  color: rgb(116, 113, 203);
+  color: #DA76EC;
   margin-bottom: 15px;
   font-size: 1.2rem !important;
   text-transform: uppercase;
@@ -201,7 +201,7 @@ p {
 /* Rank number */
 .rank {
   flex: 0 0 30px !important;
-  color: rgb(116, 113, 203) !important;
+  color: #DA76EC !important;
   font-weight: normal !important; /* Match How to Play font weight */
   font-size: 0.7rem !important; /* Match How to Play text size */
   text-align: center !important;
@@ -388,14 +388,14 @@ html, body {
 body .welcome,
 #root .welcome,
 .App .welcome {
-  border: 2px solid rgb(116, 113, 203);
+  border: 2px solid #DA76EC;
   box-sizing: border-box;
 }
 
 /* Add !important to override any conflicting styles */
 .welcome {
   background-color: #000 !important;
-  border: 2px solid rgb(116, 113, 203) !important;
+  border: 2px solid #DA76EC !important;
 }
 
 .game-modes {
@@ -429,14 +429,14 @@ body .welcome,
   background: rgba(255, 255, 255, 0.05);
   padding: 1.5rem;
   border-radius: 8px;
-  border: 2px solid rgb(116,113,203);
+  border: 2px solid #DA76EC;
   width: 100%;
   max-height: 400px;
   overflow-y: auto;
 }
 
 .active-games h2 {
-  color: rgb(116,113,203);
+  color: #DA76EC;
   margin-bottom: 1rem;
   font-size: 1.2rem;
 }
@@ -452,15 +452,15 @@ body .welcome,
   justify-content: space-between;
   align-items: center;
   padding: 1rem;
-  background: rgba(116,113,203, 0.1);
-  border: 1px solid rgb(116,113,203);
+  background: rgba(218, 118, 236, 0.1);
+  border: 1px solid #DA76EC;
   border-radius: 4px;
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
 .game-item:hover {
-  background: rgba(116,113,203, 0.2);
+  background: rgba(218, 118, 236, 0.2);
   transform: translateX(5px);
 }
 
@@ -491,7 +491,7 @@ body .welcome,
 
 .spectator-count {
   font-size: 0.8rem;
-  color: rgb(116,113,203);
+  color: #DA76EC;
   font-family: 'Press Start 2P', monospace;
 }
 
@@ -522,17 +522,17 @@ body .welcome,
   display: flex;
   gap: 1rem;
   align-items: center;
-  background: rgba(116,113,203, 0.2);
+  background: rgba(218, 118, 236, 0.2);
   padding: 0.5rem 1rem;
   border-radius: 4px;
-  border: 1px solid rgb(116,113,203);
+  border: 1px solid #DA76EC;
   font-family: 'Press Start 2P', monospace;
   font-size: 0.7rem;
   color: rgb(253,208,64);
 }
 
 .spectator-count-badge {
-  color: rgb(116,113,203);
+  color: #DA76EC;
 }
 
 .leave-spectate-btn {
@@ -561,10 +561,10 @@ body .welcome,
 }
 
 .room-code-display {
-  background: rgba(116,113,203, 0.2);
+  background: rgba(218, 118, 236, 0.2);
   padding: 0.5rem 1rem;
   border-radius: 4px;
-  border: 1px solid rgb(116,113,203);
+  border: 1px solid #DA76EC;
   font-family: 'Press Start 2P', monospace;
   font-size: 0.8rem;
   color: rgb(253,208,64);
@@ -604,7 +604,7 @@ body .welcome,
   color: white;
   padding: 0.75rem 1.5rem;
   font-size: 0.9rem;
-  border: 2px solid rgb(116,113,203);
+  border: 2px solid #DA76EC;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -619,11 +619,11 @@ body .welcome,
 }
 
 .my-wins-btn {
-  background: rgba(253, 208, 64, 0.2);
-  color: rgb(253, 208, 64);
+  background: rgba(218, 118, 236, 0.2);
+  color: #DA76EC;
   padding: 0.75rem 1.5rem;
   font-size: 0.9rem;
-  border: 2px solid rgb(253, 208, 64);
+  border: 2px solid #DA76EC;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -632,17 +632,17 @@ body .welcome,
 }
 
 .my-wins-btn:hover {
-  background: rgba(253, 208, 64, 0.3);
+  background: rgba(218, 118, 236, 0.3);
   transform: translateY(-2px);
-  box-shadow: 0 0 20px rgba(253, 208, 64, 0.5);
+  box-shadow: 0 0 20px rgba(218, 118, 236, 0.5);
 }
 
 .game-history-btn {
-  background: rgba(116, 113, 203, 0.2);
-  color: rgb(116, 113, 203);
+  background: rgba(218, 118, 236, 0.2);
+  color: #DA76EC;
   padding: 0.75rem 1.5rem;
   font-size: 0.9rem;
-  border: 2px solid rgb(116, 113, 203);
+  border: 2px solid #DA76EC;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -651,25 +651,25 @@ body .welcome,
 }
 
 .game-history-btn:hover {
-  background: rgba(116, 113, 203, 0.3);
+  background: rgba(218, 118, 236, 0.3);
   transform: translateY(-2px);
-  box-shadow: 0 0 20px rgba(116, 113, 203, 0.5);
+  box-shadow: 0 0 20px rgba(218, 118, 236, 0.5);
 }
 
 /* Staked Match Button - Match other buttons */
 .mode-button.staked-match {
-  background: rgb(116,113,203);
+  background: #DA76EC;
   position: relative;
   overflow: hidden;
 }
 
 .mode-button.staked-match:not(:disabled):hover {
-  background: rgba(116,113,203, 0.8);
-  box-shadow: 0 0 15px rgba(116,113,203, 0.2);
+  background: rgba(218, 118, 236, 0.8);
+  box-shadow: 0 0 15px rgba(218, 118, 236, 0.2);
 }
 
 .mode-button.staked-match:disabled {
-  background: rgba(116,113,203, 0.3);
+  background: rgba(218, 118, 236, 0.3);
   cursor: not-allowed;
   opacity: 0.5;
 }
@@ -699,8 +699,8 @@ dialog.stake-modal h2 {
 .stake-option {
   padding: 1.5rem;
   font-size: 1.2rem;
-  background: rgba(116,113,203, 0.2);
-  border: 2px solid rgb(116,113,203);
+  background: rgba(218, 118, 236, 0.2);
+  border: 2px solid #DA76EC;
   color: rgb(253,208,64);
   cursor: pointer;
   transition: all 0.3s ease;
@@ -709,9 +709,9 @@ dialog.stake-modal h2 {
 }
 
 .stake-option:hover {
-  background: rgba(116,113,203, 0.4);
+  background: rgba(218, 118, 236, 0.4);
   transform: scale(1.05);
-  box-shadow: 0 0 20px rgba(116,113,203, 0.5);
+  box-shadow: 0 0 20px rgba(218, 118, 236, 0.5);
   border-color: rgb(253,208,64);
 }
 
@@ -732,11 +732,11 @@ dialog.stake-modal h2 {
 
 .transaction-modal {
   background: #000;
-  border: 2px solid rgb(116,113,203);
+  border: 2px solid #DA76EC;
   border-radius: 12px;
   padding: 3rem;
   text-align: center;
-  box-shadow: 0 0 30px rgba(116,113,203, 0.5);
+  box-shadow: 0 0 30px rgba(218, 118, 236, 0.5);
   max-width: 400px;
 }
 
@@ -760,8 +760,8 @@ dialog.stake-modal h2 {
   width: 60px;
   height: 60px;
   margin: 0 auto;
-  border: 4px solid rgba(116,113,203, 0.2);
-  border-top: 4px solid rgb(116,113,203);
+  border: 4px solid rgba(218, 118, 236, 0.2);
+  border-top: 4px solid #DA76EC;
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
