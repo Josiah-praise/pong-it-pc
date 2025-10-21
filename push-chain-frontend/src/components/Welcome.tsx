@@ -1,6 +1,6 @@
-import { useRef, useState, useEffect, useCallback, FC } from 'react';
+import { useRef, useState, useEffect, useCallback, type FC } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { usePushWalletContext, PushUniversalAccountButton } from '@pushchain/ui-kit';
+import { usePushWalletContext, PushUniversalAccountButton, usePushChainClient } from '@pushchain/ui-kit';
 import io, { Socket } from 'socket.io-client';
 import '../styles/Welcome.css';
 import { BACKEND_URL, STAKE_AMOUNTS } from '../constants';
@@ -41,9 +41,12 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet 
   const socketRef = useRef<Socket | null>(null);
 
   // Push Chain wallet context
-  const { connectionStatus, universalAccount } = usePushWalletContext();
+  const { connectionStatus } = usePushWalletContext();
+  const { pushChainClient } = usePushChainClient();
   const isConnected = connectionStatus === 'connected';
-  const address = universalAccount?.caipAddress;
+  
+  // Get the user's account address from Push Chain client
+  const address = pushChainClient?.universal?.account?.toLowerCase() || null;
 
   // Push Chain staking hook
   const {
@@ -246,7 +249,7 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet 
     modal.innerHTML = `
       <form method="dialog">
         <h2>Enter Your Username</h2>
-        <input type="text" id="username" required minlength="2" maxlength="15">
+        <input type="text" id="username" value="" required minlength="2" maxlength="15" placeholder="Your name" autocomplete="off">
         <div class="buttons">
           <button type="submit">Continue</button>
         </div>
@@ -256,15 +259,24 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet 
     document.body.appendChild(modal);
     modal.showModal();
 
+    // Clear and focus the input
+    const input = document.getElementById('username') as HTMLInputElement;
+    if (input) {
+      input.value = '';
+      input.focus();
+    }
+
     const form = modal.querySelector('form');
     if (form) {
       form.onsubmit = (e) => {
         e.preventDefault();
         const input = document.getElementById('username') as HTMLInputElement;
-        const username = input.value;
-        onUsernameSet(username);
-        callback(username);
-        modal.remove();
+        const username = input.value.trim();
+        if (username) {
+          onUsernameSet(username);
+          callback(username);
+          modal.remove();
+        }
       };
     }
   };
@@ -297,7 +309,7 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet 
       modal.innerHTML = `
         <form method="dialog">
           <h2>Enter Room Code</h2>
-          <input type="text" id="roomCode" required minlength="6" maxlength="6" placeholder="ABC123" style="text-transform: uppercase;">
+          <input type="text" id="roomCode" value="" required minlength="6" maxlength="6" placeholder="ABC123" style="text-transform: uppercase;" autocomplete="off">
           <div class="buttons">
             <button type="submit">Join Room</button>
             <button type="button" id="cancel-btn">Cancel</button>
@@ -307,6 +319,13 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet 
 
       document.body.appendChild(modal);
       modal.showModal();
+
+      // Clear and focus the input
+      const input = document.getElementById('roomCode') as HTMLInputElement;
+      if (input) {
+        input.value = '';
+        input.focus();
+      }
 
       const cancelBtn = document.getElementById('cancel-btn');
       if (cancelBtn) {

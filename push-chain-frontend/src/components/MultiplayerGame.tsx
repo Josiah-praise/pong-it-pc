@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, useCallback, FC } from 'react';
+import { useEffect, useRef, useState, useCallback, type FC } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { usePushWalletContext } from '@pushchain/ui-kit';
+import { usePushWalletContext, usePushChainClient } from '@pushchain/ui-kit';
 import io, { Socket } from 'socket.io-client';
 import '../styles/Game.css';
 import { BACKEND_URL, INITIAL_RATING } from '../constants';
@@ -75,9 +75,12 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
   const keyboardIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Push Chain wallet context
-  const { universalAccount, connectionStatus } = usePushWalletContext();
+  const { connectionStatus } = usePushWalletContext();
+  const { pushChainClient } = usePushChainClient();
   const isConnected = connectionStatus === 'connected';
-  const address = universalAccount?.caipAddress;
+  
+  // Get the user's account address from Push Chain client
+  const address = pushChainClient?.universal?.account?.toLowerCase() || null;
 
   // Push Chain staking hook for Player2
   const {

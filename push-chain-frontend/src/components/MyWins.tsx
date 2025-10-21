@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback, FC } from 'react';
+import { useState, useEffect, useCallback, type FC } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { usePushWalletContext } from '@pushchain/ui-kit';
+import { usePushWalletContext, usePushChainClient } from '@pushchain/ui-kit';
 import { useClaimPrize } from '../hooks/usePushContract';
 import { useExecutorAddress } from '../hooks/useExecutorAddress';
 import { formatEther } from 'viem';
@@ -32,9 +32,12 @@ const MyWins: FC = () => {
   const navigate = useNavigate();
   
   // Push Chain wallet context
-  const { universalAccount, connectionStatus } = usePushWalletContext();
+  const { connectionStatus } = usePushWalletContext();
+  const { pushChainClient } = usePushChainClient();
   const isConnected = connectionStatus === 'connected';
-  const originAddress = universalAccount?.caipAddress;
+  
+  // Get the user's account address from Push Chain client
+  const originAddress = pushChainClient?.universal?.account?.toLowerCase() || null;
   
   // CRITICAL: Get the Universal Executor Account (UEA) address
   // The contract sees UEA as msg.sender, not the origin address
