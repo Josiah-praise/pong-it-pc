@@ -46,8 +46,11 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
+// Normalize FRONTEND_URL by removing trailing slash
+const FRONTEND_URL = process.env.FRONTEND_URL?.replace(/\/$/, '');
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL,
+  origin: FRONTEND_URL,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
@@ -58,7 +61,7 @@ const httpServer = createServer(app);
 
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.FRONTEND_URL,
+    origin: FRONTEND_URL,
     methods: ['GET', 'POST'],
     credentials: true,
     allowedHeaders: ['*']
@@ -83,7 +86,7 @@ app.get('/health', (req, res) => {
     status: 'ok', 
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV,
-    frontend_url: process.env.FRONTEND_URL || 'not set'
+    frontend_url: FRONTEND_URL || 'not set'
   });
 });
 
@@ -618,7 +621,7 @@ try {
   httpServer.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on port ${PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV}`);
-    console.log(`Server accepting connections from: ${process.env.FRONTEND_URL || "all origins (debug mode)"}`);
+    console.log(`Server accepting connections from: ${FRONTEND_URL || "all origins (debug mode)"}`);
     console.log(`Health check available at http://localhost:${PORT}/health`);
     
     const addresses = Object.values(require('os').networkInterfaces())
