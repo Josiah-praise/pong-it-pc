@@ -13,11 +13,11 @@ class RoomManager {
     return code;
   }
 
-  createRoom(hostPlayer, hostSocketId) {
+  createRoom(hostPlayer, hostSocketId, isStaked = false) {
     const roomCode = this.generateRoomCode();
 
     if (this.rooms.has(roomCode)) {
-      return this.createRoom(hostPlayer, hostSocketId);
+      return this.createRoom(hostPlayer, hostSocketId, isStaked);
     }
 
     this.rooms.set(roomCode, {
@@ -29,7 +29,10 @@ class RoomManager {
       guest: null,
       spectators: new Set(),
       status: 'waiting',
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      isStaked: isStaked,
+      hostStaked: isStaked, // For staked games, host must have already staked
+      guestStaked: false    // Guest hasn't staked yet
     });
 
     this.playerRooms.set(hostSocketId, roomCode);
@@ -37,7 +40,7 @@ class RoomManager {
     return roomCode;
   }
 
-  createRoomWithCode(roomCode, hostPlayer, hostSocketId) {
+  createRoomWithCode(roomCode, hostPlayer, hostSocketId, isStaked = false) {
     if (this.rooms.has(roomCode)) {
       throw new Error('Room code already exists');
     }
@@ -51,7 +54,10 @@ class RoomManager {
       guest: null,
       spectators: new Set(),
       status: 'waiting',
-      createdAt: Date.now()
+      createdAt: Date.now(),
+      isStaked: isStaked,
+      hostStaked: isStaked, // For staked games, host must have already staked
+      guestStaked: false    // Guest hasn't staked yet
     });
 
     this.playerRooms.set(hostSocketId, roomCode);
@@ -92,6 +98,15 @@ class RoomManager {
   getRoomByPlayer(socketId) {
     const roomCode = this.playerRooms.get(socketId);
     return roomCode ? this.rooms.get(roomCode) : null;
+  }
+
+  markGuestStaked(roomCode) {
+    const room = this.rooms.get(roomCode);
+    if (room) {
+      room.guestStaked = true;
+      return true;
+    }
+    return false;
   }
 
   startGame(roomCode) {

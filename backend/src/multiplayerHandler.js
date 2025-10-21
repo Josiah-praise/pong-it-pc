@@ -73,6 +73,10 @@ class MultiplayerHandler {
       this.handleLeaveRoom(socket);
     });
 
+    socket.on('leaveRoomBeforeStaking', ({ roomCode }) => {
+      this.handleLeaveRoomBeforeStaking(socket, roomCode);
+    });
+
     socket.on('disconnect', () => {
       this.handleDisconnect(socket);
     });
@@ -146,6 +150,15 @@ class MultiplayerHandler {
         if (gameRecord.isStaked && !gameRecord.player2TxHash) {
           // This is a staked match and Player 2 hasn't staked yet
           console.log(`💎 Staked match detected! Prompting Player 2 to stake ${gameRecord.stakeAmount} ETH`);
+          
+          // Mark the room as staked
+          const room = this.roomManager.getRoom(roomCode);
+          if (room) {
+            room.isStaked = true;
+            room.hostStaked = true;
+            room.guestStaked = false;
+          }
+          
           socket.emit('stakedMatchJoined', {
             roomCode,
             stakeAmount: gameRecord.stakeAmount,
@@ -185,6 +198,9 @@ class MultiplayerHandler {
     }
 
     console.log('Player 2 staking completed for room:', roomCode);
+
+    // Mark that guest has successfully staked
+    this.roomManager.markGuestStaked(roomCode);
 
     this.io.to(roomCode).emit('roomReady', { room });
 
@@ -428,14 +444,70 @@ class MultiplayerHandler {
     }
   }
 
+  handleLeaveRoomBeforeStaking(socket, roomCode) {
+    const room = this.roomManager.getRoom(roomCode);
+    if (!room) {
+      console.log(`⚠️ No room found for code ${roomCode}`);
+      return;
+    }
+
+    const isGuest = room.guest && room.guest.socketId === socket.id;
+
+    console.log(`🚪 handleLeaveRoomBeforeStaking - Room: ${roomCode}`, {
+      isStaked: room.isStaked,
+      isGuest,
+      guestStaked: room.guestStaked
+    });
+
+    // Only handle if this is a staked game and the guest hasn't staked
+    if (room.isStaked && isGuest && !room.guestStaked) {
+      console.log(`✅ Guest intentionally leaving staked room ${roomCode} before staking - keeping room open`);
+      this.roomManager.removePlayerFromRoom(socket.id);
+      // Notify host that guest left before staking (optional - can show a message)
+      this.io.to(roomCode).emit('guestLeftBeforeStaking', { 
+        message: 'Player left before staking. Room is still open.'
+      });
+      return;
+    }
+
+    // If not a staked game or guest has staked, handle as normal leave
+    this.handleLeaveRoom(socket);
+  }
+
   handleDisconnect(socket) {
     this.handleLeaveSpectate(socket);
 
     const room = this.roomManager.getRoomByPlayer(socket.id);
-    if (!room) return;
+    if (!room) {
+      console.log(`⚠️ No room found for disconnecting socket ${socket.id}`);
+      return;
+    }
 
     const roomCode = room.code;
+    const isGuest = room.guest && room.guest.socketId === socket.id;
 
+    console.log(`🔌 handleDisconnect - Room: ${roomCode}`, {
+      isStaked: room.isStaked,
+      isGuest,
+      guestStaked: room.guestStaked,
+      hostStaked: room.hostStaked,
+      roomStatus: room.status
+    });
+
+    // For staked games: only end the game if the guest has actually staked
+    // If guest leaves before staking, just remove them and keep room open
+    if (room.isStaked && isGuest && !room.guestStaked) {
+      console.log(`🔄 Guest disconnected from staked room ${roomCode} before staking - keeping room open`);
+      this.roomManager.removePlayerFromRoom(socket.id);
+      // Notify host that guest left before staking
+      this.io.to(roomCode).emit('guestLeftBeforeStaking', {
+        message: 'Player disconnected before staking. Room is still open.'
+      });
+      return;
+    }
+
+    // For non-staked games or if guest has staked: end the game
+    console.log(`❌ Ending game for room ${roomCode} - opponent disconnected`);
     this.io.to(roomCode).emit('opponentDisconnected');
 
     this.endGame(roomCode);

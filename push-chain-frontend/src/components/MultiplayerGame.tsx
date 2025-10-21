@@ -730,6 +730,10 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
                       setShowPlayer2StakingModal(false);
                       setStakingData(null);
                       setStakingErrorMessage(null);
+                      // Emit leaveRoom before navigating so backend knows we're leaving before staking
+                      if (socketRef.current && stakingData?.roomCode) {
+                        socketRef.current.emit('leaveRoomBeforeStaking', { roomCode: stakingData.roomCode });
+                      }
                       navigate('/');
                     }}
                     className="decline-btn"
@@ -758,6 +762,10 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
                       setShowPlayer2StakingModal(false);
                       setStakingData(null);
                       setStakingErrorMessage(null);
+                      // Emit leaveRoom before navigating so backend knows we're leaving before staking
+                      if (socketRef.current && stakingData?.roomCode) {
+                        socketRef.current.emit('leaveRoomBeforeStaking', { roomCode: stakingData.roomCode });
+                      }
                       navigate('/');
                     }}
                     className="decline-btn"
