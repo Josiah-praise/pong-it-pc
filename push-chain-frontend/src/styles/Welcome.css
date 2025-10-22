@@ -121,6 +121,21 @@ dialog input {
   font-family: 'Press Start 2P', monospace;
 }
 
+dialog input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+  opacity: 0.5;
+}
+
+dialog input::-webkit-input-placeholder {
+  color: rgba(255, 255, 255, 0.3);
+  opacity: 0.5;
+}
+
+dialog input::-moz-placeholder {
+  color: rgba(255, 255, 255, 0.3);
+  opacity: 0.5;
+}
+
 dialog .buttons {
   display: flex;
   gap: 1rem;
@@ -597,6 +612,21 @@ body .welcome,
   z-index: 100;
   display: flex;
   gap: 0.75rem;
+  max-width: 400px;
+}
+
+/* Override Push Chain button styling to prevent overflow */
+.wallet-connect-container > div {
+  max-width: 100%;
+}
+
+.wallet-connect-container button {
+  max-width: 220px !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.7rem !important;
+  padding: 0.6rem 1rem !important;
 }
 
 .connect-wallet-btn {
@@ -640,8 +670,8 @@ body .welcome,
 .unclaimed-stakes-btn {
   background: rgba(218, 118, 236, 0.2);
   color: #DA76EC;
-  padding: 0.75rem 1.5rem;
-  font-size: 0.9rem;
+  padding: 0.75rem 1.2rem;
+  font-size: 0.65rem;
   border: 2px solid #DA76EC;
   border-radius: 8px;
   cursor: pointer;
