@@ -80,6 +80,13 @@ contract PongEscrow is ReentrancyGuard, Pausable, Ownable {
         uint256 timestamp
     );
 
+    event AbandonedMatchRefunded(
+        string indexed roomCode,
+        address indexed player,
+        uint256 amount,
+        uint256 timestamp
+    );
+
     event ExpiredMatchRefunded(
         string indexed roomCode,
         address indexed player1,
@@ -227,6 +234,51 @@ contract PongEscrow is ReentrancyGuard, Pausable, Ownable {
         require(success, "Refund failed");
 
         emit MatchRefunded(roomCode, msg.sender, refundAmount, block.timestamp);
+    }
+
+    /**
+     * @notice Player 1 can claim immediate refund for abandoned match with backend signature
+     * @dev This allows instant refunds when host leaves before anyone joins (no timeout)
+     * @param roomCode Room code to refund
+     * @param signature Backend's signature authorizing the refund
+     */
+    function claimRefundForAbandoned(
+        string calldata roomCode,
+        bytes calldata signature
+    ) external nonReentrant {
+        Match storage matchData = matches[roomCode];
+
+        require(
+            matchData.status == MatchStatus.PLAYER1_STAKED,
+            "Match not in player1 staked state"
+        );
+        require(msg.sender == matchData.player1, "Only player 1 can claim refund");
+        require(matchData.player2 == address(0), "Player 2 already joined");
+
+        // Verify backend signature
+        // Message format: keccak256(roomCode, player1Address, "ABANDONED")
+        bytes32 messageHash = keccak256(
+            abi.encodePacked(roomCode, msg.sender, "ABANDONED")
+        );
+        bytes32 ethSignedMessageHash = messageHash.toEthSignedMessageHash();
+        address signer = ethSignedMessageHash.recover(signature);
+
+        require(signer == backendOracle, "Invalid backend signature");
+
+        // Update state before transfer
+        matchData.status = MatchStatus.REFUNDED;
+        uint256 refundAmount = matchData.stakeAmount;
+
+        // Transfer refund
+        (bool success, ) = payable(msg.sender).call{value: refundAmount}("");
+        require(success, "Refund failed");
+
+        emit AbandonedMatchRefunded(
+            roomCode,
+            msg.sender,
+            refundAmount,
+            block.timestamp
+        );
     }
 
     /**
