@@ -343,6 +343,17 @@ app.post('/games', async (req, res) => {
     }
 
     await game.save();
+    
+    // If this is a staked game with player1TxHash, mark the room as staked
+    if (game.isStaked && game.player1TxHash) {
+      const room = multiplayerHandler.roomManager.getRoom(roomCode);
+      if (room) {
+        room.isStaked = true;
+        room.hostStaked = true;
+        console.log(`✅ Room ${roomCode} marked as staked after Player 1 staked`);
+      }
+    }
+    
     res.status(200).json(game);
   } catch (error) {
     console.error('Error saving game:', error);
@@ -553,6 +564,73 @@ app.get('/games/:roomCode', async (req, res) => {
   } catch (error) {
     console.error('Error fetching game:', error);
     res.status(500).json({ error: 'Failed to fetch game' });
+  }
+});
+
+// Get user's abandoned stakes (unclaimed refunds)
+app.get('/games/abandoned-stakes/:address', async (req, res) => {
+  try {
+    const { address } = req.params;
+    const { limit = 20, offset = 0 } = req.query;
+
+    if (!address) {
+      return res.status(400).json({ error: 'Address is required' });
+    }
+
+    const query = {
+      player1Address: address.toLowerCase(),
+      status: 'abandoned',
+      canRefund: true,
+      refundClaimed: false
+    };
+
+    // Fetch games with pagination
+    const games = await Game.find(query)
+      .sort({ createdAt: -1 })
+      .skip(parseInt(offset))
+      .limit(parseInt(limit))
+      .lean();
+
+    // Get total count for pagination
+    const totalGames = await Game.countDocuments(query);
+
+    res.status(200).json({
+      games,
+      pagination: {
+        total: totalGames,
+        limit: parseInt(limit),
+        offset: parseInt(offset),
+        hasMore: (parseInt(offset) + parseInt(limit)) < totalGames
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching abandoned stakes:', error);
+    res.status(500).json({ error: 'Failed to fetch abandoned stakes' });
+  }
+});
+
+// Mark refund as claimed
+app.post('/games/:gameId/refund-claimed', async (req, res) => {
+  try {
+    const { gameId } = req.params;
+    const { txHash } = req.body;
+
+    const game = await Game.findById(gameId);
+
+    if (!game) {
+      return res.status(404).json({ error: 'Game not found' });
+    }
+
+    if (game.refundClaimed) {
+      return res.status(400).json({ error: 'Refund already claimed' });
+    }
+
+    await game.markRefundAsClaimed(txHash);
+
+    res.status(200).json({ success: true, game });
+  } catch (error) {
+    console.error('Error marking refund as claimed:', error);
+    res.status(500).json({ error: 'Failed to mark refund as claimed' });
   }
 });
 

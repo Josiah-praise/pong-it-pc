@@ -67,6 +67,46 @@ class SignatureService {
   }
 
   /**
+   * Sign refund authorization for abandoned match
+   * IMPORTANT: This MUST match the smart contract's signature verification:
+   * keccak256(abi.encodePacked(roomCode, player1Address, "ABANDONED"))
+   *
+   * @param {string} roomCode - The game room code
+   * @param {string} player1Address - Ethereum address of player 1
+   * @returns {Promise<string>} - Signature hex string
+   */
+  async signAbandonedRefund(roomCode, player1Address) {
+    if (!this.wallet) {
+      throw new Error('Signing wallet not initialized. Check SIGNING_WALLET_PRIVATE_KEY in .env');
+    }
+
+    try {
+      // Pack the data exactly as the smart contract expects:
+      // keccak256(abi.encodePacked(roomCode, player1Address, "ABANDONED"))
+      const messageHash = ethers.solidityPackedKeccak256(
+        ['string', 'address', 'string'],
+        [roomCode, player1Address, 'ABANDONED']
+      );
+
+      // Sign the message hash (this automatically applies EIP-191 prefix)
+      const signature = await this.wallet.signMessage(ethers.getBytes(messageHash));
+
+      console.log('✅ Abandoned refund signature generated:', {
+        roomCode,
+        player1: player1Address,
+        messageHash,
+        signaturePreview: signature.slice(0, 10) + '...',
+        signerAddress: this.wallet.address
+      });
+
+      return signature;
+    } catch (error) {
+      console.error('❌ Failed to sign abandoned refund:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get the signer's Ethereum address
    * @returns {string|null} - Signer address or null if not initialized
    */

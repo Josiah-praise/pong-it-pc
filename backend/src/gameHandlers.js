@@ -7,7 +7,7 @@ class GameHandlers {
     this.games = new Map();
     this.waitingPlayers = new Set();
     this.playerRankings = new Map();
-    this.playerServiceUrl = process.env.PLAYER_SERVICE_URL || 'http://localhost:5001';
+    this.playerServiceUrl = process.env.PLAYER_SERVICE_URL || 'http://localhost:8080';
   }
 
   handleConnection(socket) {

@@ -6,6 +6,7 @@ import SpectatorView from './components/SpectatorView'
 import GameOver from './components/GameOver'
 import MyWins from './components/MyWins'
 import GameHistory from './components/GameHistory'
+import UnclaimedStakes from './components/UnclaimedStakes'
 import './styles/App.css'
 import { STORAGE_KEY } from './constants'
 
@@ -92,6 +93,10 @@ function App() {
         <Route
           path="/game-history"
           element={<GameHistory savedUsername={username} />}
+        />
+        <Route
+          path="/unclaimed-stakes"
+          element={<UnclaimedStakes />}
         />
       </Routes>
     </div>

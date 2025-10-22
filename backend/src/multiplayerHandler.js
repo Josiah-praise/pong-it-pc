@@ -77,6 +77,11 @@ class MultiplayerHandler {
       this.handleLeaveRoomBeforeStaking(socket, roomCode);
     });
 
+    socket.on('leaveAbandonedRoom', ({ roomCode }) => {
+      console.log(`🔔 Received leaveAbandonedRoom event - Socket: ${socket.id}, Room: ${roomCode}`);
+      this.handleLeaveAbandonedRoom(socket, roomCode);
+    });
+
     socket.on('disconnect', () => {
       this.handleDisconnect(socket);
     });
@@ -474,7 +479,47 @@ class MultiplayerHandler {
     this.handleLeaveRoom(socket);
   }
 
-  handleDisconnect(socket) {
+  /**
+   * Handle when host intentionally leaves an abandoned staked room
+   * (e.g., clicking "Back" or "Forfeit" button before anyone joins)
+   */
+  async handleLeaveAbandonedRoom(socket, roomCode) {
+    console.log(`🔵 handleLeaveAbandonedRoom called - Socket: ${socket.id}, Room: ${roomCode}`);
+    
+    const room = this.roomManager.getRoom(roomCode);
+    if (!room) {
+      console.log(`⚠️ No room found for code ${roomCode}`);
+      return;
+    }
+
+    const isHost = room.host && room.host.socketId === socket.id;
+
+    console.log(`🚪 handleLeaveAbandonedRoom - Room: ${roomCode}`, {
+      isStaked: room.isStaked,
+      isHost,
+      hasGuest: !!room.guest,
+      roomStatus: room.status
+    });
+
+    // Validate this is actually an abandonment scenario
+    if (room.isStaked && isHost && !room.guest) {
+      console.log(`💰 Host intentionally leaving staked room ${roomCode} before anyone joined - marking for refund`);
+      await this.markGameAsAbandoned(roomCode);
+      this.endGame(roomCode);
+      this.roomManager.removePlayerFromRoom(socket.id);
+      
+      // Notify client that abandonment was processed
+      socket.emit('abandonmentProcessed', {
+        message: 'Room abandoned. You can reclaim your stake from "Unclaimed Stakes".'
+      });
+    } else {
+      // Invalid abandonment attempt - treat as normal forfeit
+      console.log(`⚠️ Invalid abandonment attempt for room ${roomCode} - guest exists or not staked`);
+      this.handleForfeitGame(socket);
+    }
+  }
+
+  async handleDisconnect(socket) {
     this.handleLeaveSpectate(socket);
 
     const room = this.roomManager.getRoomByPlayer(socket.id);
@@ -484,18 +529,29 @@ class MultiplayerHandler {
     }
 
     const roomCode = room.code;
+    const isHost = room.host && room.host.socketId === socket.id;
     const isGuest = room.guest && room.guest.socketId === socket.id;
 
     console.log(`🔌 handleDisconnect - Room: ${roomCode}`, {
       isStaked: room.isStaked,
+      isHost,
       isGuest,
       guestStaked: room.guestStaked,
       hostStaked: room.hostStaked,
-      roomStatus: room.status
+      roomStatus: room.status,
+      hasGuest: !!room.guest
     });
 
-    // For staked games: only end the game if the guest has actually staked
-    // If guest leaves before staking, just remove them and keep room open
+    // CASE 1: Host leaves staked room before anyone joins -> Mark as abandoned
+    if (room.isStaked && isHost && !room.guest) {
+      console.log(`💰 Host abandoned staked room ${roomCode} before anyone joined - marking for refund`);
+      await this.markGameAsAbandoned(roomCode);
+      this.endGame(roomCode);
+      this.roomManager.removePlayerFromRoom(socket.id);
+      return;
+    }
+
+    // CASE 2: Guest leaves staked room before staking -> Keep room open
     if (room.isStaked && isGuest && !room.guestStaked) {
       console.log(`🔄 Guest disconnected from staked room ${roomCode} before staking - keeping room open`);
       this.roomManager.removePlayerFromRoom(socket.id);
@@ -506,7 +562,7 @@ class MultiplayerHandler {
       return;
     }
 
-    // For non-staked games or if guest has staked: end the game
+    // CASE 3: For non-staked games or if guest has staked: end the game
     console.log(`❌ Ending game for room ${roomCode} - opponent disconnected`);
     this.io.to(roomCode).emit('opponentDisconnected');
 
@@ -542,7 +598,27 @@ class MultiplayerHandler {
     game.pauseTimeout = pauseTimeout;
   }
 
-  handleForfeitGame(socket) {
+  async handleForfeitGame(socket) {
+    // SAFETY CHECK: Detect if this is actually an abandonment scenario
+    const room = this.roomManager.getRoomByPlayer(socket.id);
+    if (room) {
+      const isHost = room.host && room.host.socketId === socket.id;
+      
+      // If host forfeits a staked game with no guest, treat as abandonment
+      if (room.isStaked && isHost && !room.guest) {
+        console.log(`⚠️ Forfeit detected but no opponent - converting to abandonment for room ${room.code}`);
+        await this.markGameAsAbandoned(room.code);
+        this.endGame(room.code);
+        this.roomManager.removePlayerFromRoom(socket.id);
+        
+        socket.emit('abandonmentProcessed', {
+          message: 'Room abandoned. You can reclaim your stake from "Unclaimed Stakes".'
+        });
+        return;
+      }
+    }
+
+    // Normal forfeit logic
     const game = this.gameManager.getGameByPlayer(socket.id);
     if (!game) return;
 
@@ -594,33 +670,58 @@ class MultiplayerHandler {
     }
   }
 
-  handleDisconnect(socket) {
-    this.handleLeaveSpectate(socket);
-
-    const room = this.roomManager.getRoomByPlayer(socket.id);
-    if (!room) return;
-
-    const roomCode = room.code;
-
-    const game = this.gameManager.getGame(roomCode);
-    if (game && game.status === 'active') {
-      const playerIndex = game.players.findIndex(p => p.socketId === socket.id);
-      if (playerIndex !== -1) {
-        const winner = game.players[1 - playerIndex];
-
-        this.io.to(roomCode).emit('opponentDisconnected', {
-          disconnectedPlayer: game.players[playerIndex].name,
-          winner: winner.name
-        });
-
-        this.handleGameOver(roomCode, winner, game);
+  /**
+   * Mark a staked game as abandoned and generate refund signature
+   * This happens when the host leaves before anyone joins
+   */
+  async markGameAsAbandoned(roomCode) {
+    try {
+      console.log(`🟡 Starting markGameAsAbandoned for room: ${roomCode}`);
+      
+      const game = await Game.findOne({ roomCode });
+      
+      if (!game) {
+        console.error(`❌ Game not found for abandoned room: ${roomCode}`);
+        return;
       }
-    } else {
-      this.io.to(roomCode).emit('opponentDisconnected');
-    }
 
-    this.endGame(roomCode);
-    this.roomManager.removePlayerFromRoom(socket.id);
+      console.log(`🟡 Game found:`, {
+        roomCode: game.roomCode,
+        isStaked: game.isStaked,
+        player1Address: game.player1Address,
+        player2TxHash: game.player2TxHash,
+        status: game.status
+      });
+
+      // Only mark as abandoned if it's a staked game and no player 2
+      if (!game.isStaked || game.player2TxHash) {
+        console.log(`⚠️ Game ${roomCode} is not eligible for abandonment`, {
+          isStaked: game.isStaked,
+          hasPlayer2Tx: !!game.player2TxHash
+        });
+        return;
+      }
+
+      console.log(`🟡 Generating refund signature...`);
+      
+      // Generate refund signature
+      const signature = await signatureService.signAbandonedRefund(
+        roomCode,
+        game.player1Address
+      );
+
+      console.log(`🟡 Signature generated, updating game record...`);
+
+      // Update game record
+      game.status = 'abandoned';
+      game.canRefund = true;
+      game.refundSignature = signature;
+      await game.save();
+
+      console.log(`✅ Game ${roomCode} marked as abandoned - refund signature generated`);
+    } catch (error) {
+      console.error(`❌ Error marking game ${roomCode} as abandoned:`, error);
+    }
   }
 
   endGame(roomCode) {

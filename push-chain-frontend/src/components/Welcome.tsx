@@ -37,6 +37,7 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet 
   const [selectedStakeAmount, setSelectedStakeAmount] = useState<string | null>(null);
   const [pendingRoomCode, setPendingRoomCode] = useState<string | null>(null);
   const [stakingErrorMessage, setStakingErrorMessage] = useState<string | null>(null);
+  const [unclaimedStakesCount, setUnclaimedStakesCount] = useState<number>(0);
   const titleRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const socketRef = useRef<Socket | null>(null);
@@ -58,6 +59,37 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet 
     isSuccess: isStakingSuccess,
     error: stakingError
   } = useStakeAsPlayer1();
+
+  // Fetch unclaimed stakes count when wallet is connected
+  useEffect(() => {
+    const fetchUnclaimedStakesCount = async () => {
+      if (!address || !isConnected) {
+        setUnclaimedStakesCount(0);
+        return;
+      }
+
+      try {
+        const response = await fetch(
+          `${BACKEND_URL}/games/abandoned-stakes/${address}?limit=100`
+        );
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch unclaimed stakes');
+        }
+
+        const data = await response.json();
+        setUnclaimedStakesCount(data.pagination.total);
+      } catch (error) {
+        console.error('Error fetching unclaimed stakes count:', error);
+        setUnclaimedStakesCount(0);
+      }
+    };
+
+    fetchUnclaimedStakesCount();
+    // Refresh count every 30 seconds
+    const interval = setInterval(fetchUnclaimedStakesCount, 30000);
+    return () => clearInterval(interval);
+  }, [address, isConnected]);
 
   useEffect(() => {
     const fetchRankings = async () => {
@@ -523,6 +555,14 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet 
         {isConnected && (
           <button onClick={() => navigate('/my-wins')} className="my-wins-btn">
             🏆 My Wins
+          </button>
+        )}
+        {isConnected && (
+          <button onClick={() => navigate('/unclaimed-stakes')} className="unclaimed-stakes-btn">
+            💰 Unclaimed Stakes
+            {unclaimedStakesCount > 0 && (
+              <span className="badge">{unclaimedStakesCount}</span>
+            )}
           </button>
         )}
       </div>

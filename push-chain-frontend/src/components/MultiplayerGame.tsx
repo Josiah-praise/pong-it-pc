@@ -63,6 +63,7 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
   const [isPlayer2Staking, setIsPlayer2Staking] = useState(false);
   const [stakingErrorMessage, setStakingErrorMessage] = useState<string | null>(null);
   const [isCursorHidden, setIsCursorHidden] = useState(false);
+  const [isStakedGame, setIsStakedGame] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -239,12 +240,27 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
   }, [isPaused]);
 
   const handleForfeitGame = useCallback(() => {
-    if (window.confirm('Are you sure you want to forfeit? You will lose the game.')) {
-      if (socketRef.current) {
-        socketRef.current.emit('forfeitGame');
+    // Check if this is a staked game with no opponent (abandonment scenario)
+    const hasOpponent = gameData.players.length > 1 && gameData.players[1]?.name;
+    
+    if (isStakedGame && !hasOpponent && isWaiting) {
+      // This is abandonment, not forfeit
+      if (window.confirm('Leave the room? You can reclaim your stake from "Unclaimed Stakes".')) {
+        if (socketRef.current && roomCode) {
+          socketRef.current.emit('leaveAbandonedRoom', { roomCode });
+        }
+        soundManager.stopAll();
+        navigate('/');
+      }
+    } else {
+      // Normal forfeit - opponent exists
+      if (window.confirm('Are you sure you want to forfeit? You will lose the game.')) {
+        if (socketRef.current) {
+          socketRef.current.emit('forfeitGame');
+        }
       }
     }
-  }, []);
+  }, [isStakedGame, gameData.players, isWaiting, roomCode, navigate]);
 
   const handleRematchResponse = useCallback((accepted: boolean) => {
     if (socketRef.current) {
@@ -354,6 +370,10 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
 
       if (gameMode === 'create' || gameMode === 'create-staked') {
         const specificRoomCode = locationState?.roomCode;
+        // Track if this is a staked game for Player 1 (host)
+        if (gameMode === 'create-staked') {
+          setIsStakedGame(true);
+        }
         socket.emit('createRoom', playerData, specificRoomCode);
       } else if (gameMode === 'join' && joinRoomCode) {
         socket.emit('joinRoom', { roomCode: joinRoomCode, player: playerData });
@@ -485,6 +505,11 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
       navigate('/');
     });
 
+    socket.on('abandonmentProcessed', (data: { message: string }) => {
+      console.log('✅ Abandonment processed:', data.message);
+      // Room has been marked as abandoned, refund will be available
+    });
+
     socket.on('error', (error: { message: string }) => {
       console.error('Socket error:', error);
       alert('Error: ' + error.message);
@@ -594,14 +619,37 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
   }, []);
 
   const handleLeaveGame = useCallback(() => {
-    if (window.confirm('Are you sure you want to leave? You will forfeit the game.')) {
-      if (socketRef.current) {
-        socketRef.current.emit('forfeitGame');
+    // Check if this is a staked game with no opponent (abandonment scenario)
+    const hasOpponent = gameData.players.length > 1 && gameData.players[1]?.name;
+    
+    console.log('🚪 handleLeaveGame called:', {
+      isStakedGame,
+      hasOpponent,
+      isWaiting,
+      playersCount: gameData.players.length
+    });
+    
+    if (isStakedGame && !hasOpponent && isWaiting) {
+      // This is abandonment, not forfeit
+      if (window.confirm('Leave the room? You can reclaim your stake from "Unclaimed Stakes".')) {
+        if (socketRef.current && roomCode) {
+          console.log('📤 Emitting leaveAbandonedRoom:', { roomCode });
+          socketRef.current.emit('leaveAbandonedRoom', { roomCode });
+        }
+        soundManager.stopAll();
+        navigate('/');
       }
-      soundManager.stopAll();
-      navigate('/');
+    } else {
+      // Normal forfeit - opponent exists or not staked
+      if (window.confirm('Are you sure you want to leave? You will forfeit the game.')) {
+        if (socketRef.current) {
+          socketRef.current.emit('forfeitGame');
+        }
+        soundManager.stopAll();
+        navigate('/');
+      }
     }
-  }, [navigate]);
+  }, [isStakedGame, gameData.players, isWaiting, roomCode, navigate]);
 
   return (
     <div className="game-container" ref={containerRef} style={{ touchAction: 'none' }}>

@@ -1,0 +1,406 @@
+.unclaimed-stakes-container {
+  width: 100%;
+  min-height: 100vh;
+  background: #000000;
+  padding: 2rem;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.unclaimed-stakes-content {
+  width: 100%;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.header {
+  margin-bottom: 3rem;
+  text-align: center;
+}
+
+.header h1 {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 2rem;
+  color: #DA76EC;
+  margin-bottom: 1rem;
+  text-shadow: 0 0 20px rgba(218, 118, 236, 0.5);
+}
+
+.subtitle {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+.btn-back {
+  background: rgba(218, 118, 236, 0.2);
+  color: #DA76EC;
+  border: 2px solid #DA76EC;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.9rem;
+  font-family: 'Press Start 2P', monospace;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 2rem;
+  display: inline-block;
+}
+
+.btn-back:hover {
+  background: rgba(218, 118, 236, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 0 20px rgba(218, 118, 236, 0.5);
+}
+
+.loading-state {
+  text-align: center;
+  padding: 4rem 2rem;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(218, 118, 236, 0.3);
+  border-top: 4px solid #DA76EC;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.empty-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: rgba(218, 118, 236, 0.05);
+  border: 2px solid rgba(218, 118, 236, 0.2);
+  border-radius: 16px;
+}
+
+.empty-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.empty-state h2 {
+  font-family: 'Press Start 2P', monospace;
+  color: #DA76EC;
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.empty-state p {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 1rem;
+  line-height: 1.6;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.empty-hint {
+  margin-top: 1rem;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.error-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  background: rgba(255, 50, 50, 0.05);
+  border: 2px solid rgba(255, 50, 50, 0.3);
+  border-radius: 16px;
+}
+
+.error-state h2 {
+  font-family: 'Press Start 2P', monospace;
+  color: #ff5555;
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.error-state p {
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 2rem;
+}
+
+.stakes-count {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background: rgba(218, 118, 236, 0.1);
+  border: 2px solid rgba(218, 118, 236, 0.3);
+  border-radius: 12px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.9rem;
+  color: #DA76EC;
+}
+
+.count-badge {
+  background: #DA76EC;
+  color: #000;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-weight: bold;
+  min-width: 50px;
+  text-align: center;
+}
+
+.stakes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.stake-card {
+  background: rgba(218, 118, 236, 0.05);
+  border: 2px solid rgba(218, 118, 236, 0.3);
+  border-radius: 12px;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.stake-card:hover {
+  background: rgba(218, 118, 236, 0.1);
+  border-color: rgba(218, 118, 236, 0.5);
+  box-shadow: 0 0 20px rgba(218, 118, 236, 0.2);
+}
+
+.stake-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.stake-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.room-code {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.code-value {
+  color: #DA76EC;
+  font-weight: bold;
+}
+
+.stake-date {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.stake-amount {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 1.25rem;
+  color: #DA76EC;
+  font-weight: bold;
+}
+
+.stake-status {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(218, 118, 236, 0.2);
+}
+
+.status-badge {
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-family: 'Press Start 2P', monospace;
+  text-transform: uppercase;
+}
+
+.status-badge.abandoned {
+  background: rgba(255, 165, 0, 0.2);
+  color: #ffaa00;
+  border: 1px solid rgba(255, 165, 0, 0.5);
+}
+
+.status-text {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.btn-claim {
+  width: 100%;
+  background: #DA76EC;
+  color: #000;
+  border: none;
+  padding: 1rem;
+  font-size: 1rem;
+  font-family: 'Press Start 2P', monospace;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btn-claim:hover:not(:disabled) {
+  background: #e88ff1;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(218, 118, 236, 0.5);
+}
+
+.btn-claim:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #000;
+  border-top: 2px solid transparent;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+.error-message {
+  background: rgba(255, 50, 50, 0.1);
+  border: 1px solid rgba(255, 50, 50, 0.3);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #ff8888;
+  line-height: 1.5;
+}
+
+.error-icon {
+  flex-shrink: 0;
+  font-size: 1.2rem;
+}
+
+.tx-link {
+  margin-top: 0.75rem;
+  text-align: center;
+}
+
+.tx-link a {
+  color: #DA76EC;
+  font-size: 0.85rem;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.tx-link a:hover {
+  color: #e88ff1;
+  text-decoration: underline;
+}
+
+.transaction-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.transaction-modal {
+  background: rgba(218, 118, 236, 0.1);
+  border: 2px solid #DA76EC;
+  border-radius: 16px;
+  padding: 3rem;
+  text-align: center;
+  max-width: 400px;
+  box-shadow: 0 0 40px rgba(218, 118, 236, 0.5);
+}
+
+.spinner-large {
+  width: 60px;
+  height: 60px;
+  border: 4px solid rgba(218, 118, 236, 0.3);
+  border-top: 4px solid #DA76EC;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1.5rem;
+}
+
+.transaction-modal h3 {
+  font-family: 'Press Start 2P', monospace;
+  color: #DA76EC;
+  font-size: 1.2rem;
+  margin-bottom: 1rem;
+}
+
+.transaction-modal p {
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.tx-link-overlay {
+  display: inline-block;
+  background: rgba(218, 118, 236, 0.2);
+  color: #DA76EC;
+  padding: 0.75rem 1.5rem;
+  border: 2px solid #DA76EC;
+  border-radius: 8px;
+  text-decoration: none;
+  font-size: 0.85rem;
+  transition: all 0.3s ease;
+}
+
+.tx-link-overlay:hover {
+  background: rgba(218, 118, 236, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 0 20px rgba(218, 118, 236, 0.5);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .unclaimed-stakes-container {
+    padding: 1rem;
+  }
+
+  .header h1 {
+    font-size: 1.5rem;
+  }
+
+  .stake-header {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .stake-amount {
+    font-size: 1rem;
+  }
+
+  .transaction-modal {
+    padding: 2rem;
+    margin: 1rem;
+  }
+}
+

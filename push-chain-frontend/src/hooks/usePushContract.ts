@@ -405,4 +405,103 @@ export function useClaimRefund() {
   }
 }
 
+/**
+ * Hook to claim refund for abandoned match (with backend signature)
+ * 
+ * This is used when the host leaves a staked room before anyone joins.
+ * The backend provides a signature authorizing the immediate refund.
+ * 
+ * @example
+ * const { claimRefundForAbandoned, isPending, isSuccess, hash, error } = useClaimRefundForAbandoned()
+ * await claimRefundForAbandoned('ABC123', '0x...')
+ */
+export function useClaimRefundForAbandoned() {
+  const { pushChainClient } = usePushChainClient()
+  const { PushChain } = usePushChain()
+
+  const [state, setState] = useState({
+    hash: null as string | null,
+    isPending: false,
+    isConfirming: false,
+    isSuccess: false,
+    error: null as Error | null,
+  })
+
+  const claimRefundForAbandoned = useCallback(async (roomCode: string, signature: string) => {
+    if (!pushChainClient || !PushChain) {
+      throw new Error('Push Chain not initialized')
+    }
+
+    setState({
+      hash: null,
+      isPending: true,
+      isConfirming: false,
+      isSuccess: false,
+      error: null,
+    })
+
+    try {
+      console.log('📝 Claiming refund for abandoned match:', { roomCode })
+
+      setState(prev => ({ ...prev, isPending: true, error: null, isSuccess: false }))
+
+      const data = PushChain.utils.helpers.encodeTxData({
+        abi: PONG_ESCROW_ABI,
+        functionName: 'claimRefundForAbandoned',
+        args: [roomCode, signature],
+      })
+
+      console.log('📤 Sending transaction to Push Chain...', {
+        to: PONG_ESCROW_ADDRESS,
+        dataPreview: data.slice(0, 20) + '...'
+      });
+
+      const txResponse = await pushChainClient.universal.sendTransaction({
+        to: PONG_ESCROW_ADDRESS,
+        data,
+        value: BigInt(0),
+      })
+
+      console.log('✅ Transaction sent:', txResponse.hash)
+
+      setState(prev => ({ 
+        ...prev, 
+        hash: txResponse.hash, 
+        isPending: false, 
+        isConfirming: true 
+      }))
+
+      const receipt = await txResponse.wait(1)
+      
+      console.log('✅ Abandoned refund claimed:', receipt)
+
+      setState(prev => ({ 
+        ...prev, 
+        isConfirming: false, 
+        isSuccess: true 
+      }))
+
+    } catch (error) {
+      console.error('❌ Error claiming abandoned refund:', error)
+      setState(prev => ({ 
+        ...prev, 
+        error: error as Error, 
+        isPending: false, 
+        isConfirming: false,
+        isSuccess: false
+      }))
+      throw error
+    }
+  }, [pushChainClient, PushChain])
+
+  return {
+    claimRefundForAbandoned,
+    hash: state.hash,
+    isPending: state.isPending,
+    isConfirming: state.isConfirming,
+    isSuccess: state.isSuccess,
+    error: state.error,
+  }
+}
+
 

@@ -70,10 +70,31 @@ const gameSchema = new mongoose.Schema({
     type: Date
   },
 
+  // Refund fields for abandoned matches
+  canRefund: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  refundSignature: {
+    type: String // Backend-signed proof for abandoned match refund
+  },
+  refundClaimed: {
+    type: Boolean,
+    default: false,
+    index: true
+  },
+  refundTxHash: {
+    type: String // Refund transaction hash
+  },
+  refundClaimedAt: {
+    type: Date
+  },
+
   // Game status and timestamps
   status: {
     type: String,
-    enum: ['waiting', 'playing', 'finished'],
+    enum: ['waiting', 'playing', 'finished', 'abandoned'],
     default: 'waiting'
   },
   endedAt: {
@@ -86,6 +107,7 @@ const gameSchema = new mongoose.Schema({
 // Compound indexes for efficient queries
 gameSchema.index({ winnerAddress: 1, isStaked: 1, claimed: 1 }); // For "My Wins" queries
 gameSchema.index({ isStaked: 1, claimed: 1 }); // For filtering staked unclaimed games
+gameSchema.index({ player1Address: 1, canRefund: 1, refundClaimed: 1 }); // For "Unclaimed Stakes" queries
 gameSchema.index({ createdAt: -1 }); // For recent games
 
 // Method to mark game as claimed
@@ -110,6 +132,14 @@ gameSchema.methods.getPrizeAmount = function() {
   if (!this.stakeAmount) return '0';
   // Prize is 2x stake amount (both players' stakes)
   return (parseFloat(this.stakeAmount) * 2).toString();
+};
+
+// Method to mark refund as claimed
+gameSchema.methods.markRefundAsClaimed = function(txHash) {
+  this.refundClaimed = true;
+  this.refundTxHash = txHash;
+  this.refundClaimedAt = new Date();
+  return this.save();
 };
 
 const Game = mongoose.model('Game', gameSchema);

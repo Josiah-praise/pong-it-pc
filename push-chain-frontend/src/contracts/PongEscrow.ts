@@ -84,6 +84,16 @@ export const PONG_ESCROW_ABI = [
     type: 'function',
   },
   {
+    inputs: [
+      { internalType: 'string', name: 'roomCode', type: 'string' },
+      { internalType: 'bytes', name: 'signature', type: 'bytes' }
+    ],
+    name: 'claimRefundForAbandoned',
+    outputs: [],
+    stateMutability: 'nonpayable',
+    type: 'function',
+  },
+  {
     inputs: [{ internalType: 'string', name: 'roomCode', type: 'string' }],
     name: 'claimExpiredMatchRefund',
     outputs: [],
@@ -134,6 +144,17 @@ export const PONG_ESCROW_ABI = [
       { indexed: false, internalType: 'uint256', name: 'timestamp', type: 'uint256' },
     ],
     name: 'MatchRefunded',
+    type: 'event',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'string', name: 'roomCode', type: 'string' },
+      { indexed: true, internalType: 'address', name: 'player', type: 'address' },
+      { indexed: false, internalType: 'uint256', name: 'amount', type: 'uint256' },
+      { indexed: false, internalType: 'uint256', name: 'timestamp', type: 'uint256' },
+    ],
+    name: 'AbandonedMatchRefunded',
     type: 'event',
   },
   {
