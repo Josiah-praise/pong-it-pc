@@ -138,7 +138,8 @@ const UnclaimedStakes: FC = () => {
           <button onClick={() => navigate('/')} className="btn-back">
             ← Back
           </button>
-          <h1>💰 Unclaimed Stakes</h1>
+          <span className="header-icon">💰</span>
+          <h1>Unclaimed Stakes</h1>
           <p className="subtitle">
             Recover your stakes from abandoned games
           </p>
