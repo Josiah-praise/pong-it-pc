@@ -6,6 +6,7 @@ import { useClaimRefundForAbandoned } from '../hooks/usePushContract';
 import { formatEther } from 'viem';
 import { BACKEND_URL, PUSH_CHAIN_TESTNET_EXPLORER } from '../constants';
 import { parseTransactionError } from '../utils/errorParser';
+import AddressDisplay from './AddressDisplay';
 import '../styles/UnclaimedStakes.css';
 
 interface AbandonedStake {
@@ -133,6 +134,7 @@ const UnclaimedStakes: FC = () => {
 
   return (
     <div className="unclaimed-stakes-container">
+      <AddressDisplay />
       <div className="unclaimed-stakes-content">
         <div className="header">
           <button onClick={() => navigate('/')} className="btn-back">

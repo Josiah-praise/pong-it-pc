@@ -765,3 +765,59 @@ body .endgame-container > *,
 .back-button:active {
   transform: scale(0.95);
 }
+
+/* Paddle indicators */
+.paddle-indicator {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.7rem;
+  color: rgba(218, 118, 236, 0.5);
+  padding: 0.75rem 1rem;
+  background: rgba(0, 0, 0, 0.7);
+  border: 2px solid rgba(218, 118, 236, 0.3);
+  border-radius: 8px;
+  z-index: 10;
+  transition: all 0.3s ease;
+  pointer-events: none;
+}
+
+.paddle-indicator.left {
+  left: 1rem;
+}
+
+.paddle-indicator.right {
+  right: 1rem;
+}
+
+.paddle-indicator.active {
+  color: #DA76EC;
+  border-color: #DA76EC;
+  box-shadow: 0 0 15px rgba(218, 118, 236, 0.5);
+  animation: pulse-indicator 2s infinite;
+}
+
+@keyframes pulse-indicator {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(218, 118, 236, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(218, 118, 236, 0.8);
+  }
+}
+
+@media (max-width: 768px) {
+  .paddle-indicator {
+    font-size: 0.5rem;
+    padding: 0.5rem 0.75rem;
+  }
+  
+  .paddle-indicator.left {
+    left: 0.5rem;
+  }
+  
+  .paddle-indicator.right {
+    right: 0.5rem;
+  }
+}

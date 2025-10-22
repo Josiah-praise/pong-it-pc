@@ -7,6 +7,7 @@ import { formatEther } from 'viem';
 import { BACKEND_URL, PUSH_CHAIN_TESTNET_EXPLORER } from '../constants';
 import '../styles/MyWins.css';
 import { parseTransactionError } from '../utils/errorParser';
+import AddressDisplay from './AddressDisplay';
 
 interface Game {
   _id: string
@@ -209,17 +210,10 @@ const MyWins: FC = () => {
 
   return (
     <div className="my-wins-container">
+      <AddressDisplay />
       <div className="my-wins-header">
         <button onClick={() => navigate('/')} className="back-button">← Back</button>
         <h1>My Wins</h1>
-        <div className="wallet-info">
-          <p className="wallet-address" title={originAddress}>
-            {originAddress?.slice(0, 15)}...{originAddress?.slice(-4)}
-          </p>
-          <p className="uea-info" title={executorAddress}>
-            UEA: {executorAddress.slice(0, 10)}...{executorAddress.slice(-4)}
-          </p>
-        </div>
       </div>
 
       {/* Transaction Progress Modal */}

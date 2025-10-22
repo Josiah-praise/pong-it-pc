@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, FC } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { BACKEND_URL } from '../constants';
+import AddressDisplay from './AddressDisplay';
 import '../styles/GameHistory.css';
 
 interface GameHistoryProps {
@@ -138,10 +139,10 @@ const GameHistory: FC<GameHistoryProps> = ({ savedUsername }) => {
 
   return (
     <div className="game-history-container">
+      <AddressDisplay />
       <div className="game-history-header">
         <button onClick={() => navigate('/')} className="back-button">← Back</button>
         <h1>Game History</h1>
-        <p className="username-display">{savedUsername}</p>
       </div>
 
       {/* Stats Cards */}

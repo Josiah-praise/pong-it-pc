@@ -9,6 +9,7 @@ import { useStakeAsPlayer2 } from '../hooks/usePushContract';
 import { parseTransactionError } from '../utils/errorParser';
 import { useDialog } from '../hooks/useDialog';
 import Dialog from './Dialog';
+import AddressDisplay from './AddressDisplay';
 
 interface MultiplayerGameProps {
   username: string | null
@@ -700,11 +701,28 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
     }
   }, [isStakedGame, gameData.players, isWaiting, roomCode, navigate, showConfirm]);
 
+  const playerIndex = gameData.players.findIndex(p => p.name === username);
+  const isPlayer1 = playerIndex === 0;
+  const isPlayer2 = playerIndex === 1;
+
   return (
     <div className="game-container" ref={containerRef} style={{ touchAction: 'none' }}>
+      <AddressDisplay />
       <button onClick={handleLeaveGame} className="back-button" aria-label="Leave game">
         ← Back
       </button>
+      
+      {/* Paddle indicators */}
+      {!isWaiting && (isPlayer1 || isPlayer2) && (
+        <>
+          <div className={`paddle-indicator left ${isPlayer1 ? 'active' : ''}`}>
+            {isPlayer1 && '← You'}
+          </div>
+          <div className={`paddle-indicator right ${isPlayer2 ? 'active' : ''}`}>
+            {isPlayer2 && 'You →'}
+          </div>
+        </>
+      )}
 
       {roomCode && (
         <div className="room-info">
