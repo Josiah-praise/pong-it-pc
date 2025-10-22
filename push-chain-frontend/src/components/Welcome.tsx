@@ -7,6 +7,8 @@ import { BACKEND_URL, STAKE_AMOUNTS } from '../constants';
 import soundManager from '../utils/soundManager';
 import { useStakeAsPlayer1 } from '../hooks/usePushContract';
 import { parseTransactionError } from '../utils/errorParser';
+import { useDialog } from '../hooks/useDialog';
+import Dialog from './Dialog';
 
 interface WelcomeProps {
   setGameState: (state: any) => void
@@ -49,6 +51,9 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet 
   
   // Get the user's account address from Push Chain client
   const address = pushChainClient?.universal?.account?.toLowerCase() || null;
+
+  // Dialog hook
+  const { dialogState, showAlert, handleConfirm, handleCancel } = useDialog();
 
   // Push Chain staking hook
   const {
@@ -377,7 +382,7 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet 
   const handleCreateStakedMatch = () => {
     promptUsername((username) => {
       if (!isConnected) {
-        alert('Please connect your wallet to create a staked match');
+        showAlert('Please connect your wallet to create a staked match', 'Wallet Not Connected');
         return;
       }
 
@@ -727,6 +732,12 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet 
           </div>
         </div>
       </div>
+
+      <Dialog
+        dialogState={dialogState}
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+      />
     </div>
   );
 };

@@ -3,6 +3,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import io, { Socket } from 'socket.io-client';
 import '../styles/Game.css';
 import { BACKEND_URL } from '../constants';
+import { useDialog } from '../hooks/useDialog';
+import Dialog from './Dialog';
 
 interface Player {
   name: string
@@ -26,6 +28,10 @@ interface LocationState {
 const SpectatorView: FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const socketRef = useRef<Socket | null>(null);
+  
+  // Dialog hook
+  const { dialogState, showAlert, handleConfirm, handleCancel } = useDialog();
+  
   const [gameData, setGameData] = useState<GameData>({
     score: [0, 0],
     ballPos: { x: 0, y: 0 },
@@ -122,14 +128,14 @@ const SpectatorView: FC = () => {
 
     socket.on('gameOver', (result: any) => {
       console.log('Game over:', result);
-      alert('Game has ended!');
-      navigate('/');
+      showAlert('Game has ended!', 'Game Over');
+      setTimeout(() => navigate('/'), 2000);
     });
 
     socket.on('error', (error: { message: string }) => {
       console.error('Spectator error:', error);
-      alert('Error: ' + error.message);
-      navigate('/');
+      showAlert(error.message, 'Error');
+      setTimeout(() => navigate('/'), 2000);
     });
 
     return () => {
@@ -139,7 +145,7 @@ const SpectatorView: FC = () => {
         socketRef.current.disconnect();
       }
     };
-  }, [roomCode, spectatorName, navigate]);
+  }, [roomCode, spectatorName, navigate, showAlert]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -184,6 +190,12 @@ const SpectatorView: FC = () => {
       </div>
 
       <canvas ref={canvasRef} />
+
+      <Dialog
+        dialogState={dialogState}
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+      />
     </div>
   );
 };

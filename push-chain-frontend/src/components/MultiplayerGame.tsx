@@ -7,6 +7,8 @@ import { BACKEND_URL, INITIAL_RATING } from '../constants';
 import soundManager from '../utils/soundManager';
 import { useStakeAsPlayer2 } from '../hooks/usePushContract';
 import { parseTransactionError } from '../utils/errorParser';
+import { useDialog } from '../hooks/useDialog';
+import Dialog from './Dialog';
 
 interface MultiplayerGameProps {
   username: string | null
@@ -70,6 +72,9 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
   const prevGameDataRef = useRef<GameData | null>(null);
   const isMounted = useRef(false);
   const cursorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Dialog hook
+  const { dialogState, showAlert, showConfirm, handleConfirm, handleCancel } = useDialog();
 
   // Keyboard control state
   const [keyboardPaddleY, setKeyboardPaddleY] = useState(0);
@@ -245,22 +250,32 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
     
     if (isStakedGame && !hasOpponent && isWaiting) {
       // This is abandonment, not forfeit
-      if (window.confirm('Leave the room? You can reclaim your stake from "Unclaimed Stakes".')) {
-        if (socketRef.current && roomCode) {
-          socketRef.current.emit('leaveAbandonedRoom', { roomCode });
-        }
-        soundManager.stopAll();
-        navigate('/');
-      }
+      showConfirm(
+        'Leave the room? You can reclaim your stake from "Unclaimed Stakes".',
+        () => {
+          if (socketRef.current && roomCode) {
+            socketRef.current.emit('leaveAbandonedRoom', { roomCode });
+          }
+          soundManager.stopAll();
+          navigate('/');
+        },
+        undefined,
+        'Leave Room?'
+      );
     } else {
       // Normal forfeit - opponent exists
-      if (window.confirm('Are you sure you want to forfeit? You will lose the game.')) {
-        if (socketRef.current) {
-          socketRef.current.emit('forfeitGame');
-        }
-      }
+      showConfirm(
+        'Are you sure you want to forfeit? You will lose the game.',
+        () => {
+          if (socketRef.current) {
+            socketRef.current.emit('forfeitGame');
+          }
+        },
+        undefined,
+        'Forfeit Game?'
+      );
     }
-  }, [isStakedGame, gameData.players, isWaiting, roomCode, navigate]);
+  }, [isStakedGame, gameData.players, isWaiting, roomCode, navigate, showConfirm]);
 
   const handleRematchResponse = useCallback((accepted: boolean) => {
     if (socketRef.current) {
@@ -272,12 +287,12 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
 
   const handlePlayer2Stake = useCallback(async () => {
     if (!isConnected) {
-      alert('Please connect your wallet first');
+      showAlert('Please connect your wallet first', 'Wallet Not Connected');
       return;
     }
 
     if (!stakingData) {
-      alert('No staking data available');
+      showAlert('No staking data available', 'Error');
       return;
     }
 
@@ -291,7 +306,7 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
       console.error('Error initiating Player2 stake:', error);
       setIsPlayer2Staking(false);
     }
-  }, [isConnected, stakingData, stakeAsPlayer2]);
+  }, [isConnected, stakingData, stakeAsPlayer2, showAlert]);
 
   // Handle successful Player2 staking transaction
   useEffect(() => {
@@ -476,8 +491,11 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
 
     socket.on('playerForfeited', (data: { forfeitedPlayer: string; winner: string }) => {
       soundManager.stopAll();
-      alert(`${data.forfeitedPlayer} forfeited. ${data.winner} wins!`);
-      navigate('/');
+      showAlert(
+        `${data.forfeitedPlayer} forfeited. ${data.winner} wins!`,
+        'Game Over'
+      );
+      setTimeout(() => navigate('/'), 2000);
     });
 
     socket.on('rematchRequested', (data: { from: string }) => {
@@ -486,23 +504,26 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
     });
 
     socket.on('rematchDeclined', () => {
-      alert('Rematch declined');
-      navigate('/');
+      showAlert('Rematch declined', 'Rematch');
+      setTimeout(() => navigate('/'), 2000);
     });
 
     socket.on('opponentLeft', () => {
-      alert('Opponent left the game');
-      navigate('/');
+      showAlert('Opponent left the game', 'Opponent Left');
+      setTimeout(() => navigate('/'), 2000);
     });
 
     socket.on('opponentDisconnected', (data: { disconnectedPlayer?: string; winner?: string }) => {
       soundManager.stopAll();
       if (data && data.winner) {
-        alert(`${data.disconnectedPlayer} disconnected. ${data.winner} wins!`);
+        showAlert(
+          `${data.disconnectedPlayer} disconnected. ${data.winner} wins!`,
+          'Opponent Disconnected'
+        );
       } else {
-        alert('Opponent disconnected');
+        showAlert('Opponent disconnected', 'Opponent Disconnected');
       }
-      navigate('/');
+      setTimeout(() => navigate('/'), 2000);
     });
 
     socket.on('abandonmentProcessed', (data: { message: string }) => {
@@ -512,7 +533,7 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
 
     socket.on('error', (error: { message: string }) => {
       console.error('Socket error:', error);
-      alert('Error: ' + error.message);
+      showAlert(error.message, 'Error');
     });
 
     return () => {
@@ -535,7 +556,7 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
       isMounted.current = false;
       if (cleanup) cleanup();
     };
-  }, [setupSocket, username, navigate]);
+  }, [setupSocket, username, navigate, showAlert]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -631,25 +652,35 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
     
     if (isStakedGame && !hasOpponent && isWaiting) {
       // This is abandonment, not forfeit
-      if (window.confirm('Leave the room? You can reclaim your stake from "Unclaimed Stakes".')) {
-        if (socketRef.current && roomCode) {
-          console.log('📤 Emitting leaveAbandonedRoom:', { roomCode });
-          socketRef.current.emit('leaveAbandonedRoom', { roomCode });
-        }
-        soundManager.stopAll();
-        navigate('/');
-      }
+      showConfirm(
+        'Leave the room? You can reclaim your stake from "Unclaimed Stakes".',
+        () => {
+          if (socketRef.current && roomCode) {
+            console.log('📤 Emitting leaveAbandonedRoom:', { roomCode });
+            socketRef.current.emit('leaveAbandonedRoom', { roomCode });
+          }
+          soundManager.stopAll();
+          navigate('/');
+        },
+        undefined,
+        'Leave Room?'
+      );
     } else {
       // Normal forfeit - opponent exists or not staked
-      if (window.confirm('Are you sure you want to leave? You will forfeit the game.')) {
-        if (socketRef.current) {
-          socketRef.current.emit('forfeitGame');
-        }
-        soundManager.stopAll();
-        navigate('/');
-      }
+      showConfirm(
+        'Are you sure you want to leave? You will forfeit the game.',
+        () => {
+          if (socketRef.current) {
+            socketRef.current.emit('forfeitGame');
+          }
+          soundManager.stopAll();
+          navigate('/');
+        },
+        undefined,
+        'Leave Game?'
+      );
     }
-  }, [isStakedGame, gameData.players, isWaiting, roomCode, navigate]);
+  }, [isStakedGame, gameData.players, isWaiting, roomCode, navigate, showConfirm]);
 
   return (
     <div className="game-container" ref={containerRef} style={{ touchAction: 'none' }}>
@@ -840,6 +871,12 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
       )}
 
       <canvas ref={canvasRef} />
+
+      <Dialog
+        dialogState={dialogState}
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+      />
     </div>
   );
 };

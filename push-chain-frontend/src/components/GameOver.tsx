@@ -3,6 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import io, { Socket } from 'socket.io-client';
 import { STORAGE_KEY, BACKEND_URL } from '../constants';
 import '../styles/GameOver.css';
+import { useDialog } from '../hooks/useDialog';
+import Dialog from './Dialog';
 
 interface GameOverResult {
   message: string
@@ -25,6 +27,9 @@ const GameOver: FC = () => {
   const socketRef = useRef<Socket | null>(null);
   const [rematchRequested, setRematchRequested] = useState(false);
   const [waitingForResponse, setWaitingForResponse] = useState(false);
+  
+  // Dialog hook
+  const { dialogState, showAlert, handleConfirm, handleCancel } = useDialog();
 
   useEffect(() => {
     if (!result) {
@@ -61,7 +66,7 @@ const GameOver: FC = () => {
     });
 
     socket.on('rematchDeclined', () => {
-      alert('Opponent declined rematch');
+      showAlert('Opponent declined rematch', 'Rematch Declined');
       setWaitingForResponse(false);
       setRematchRequested(false);
     });
@@ -70,7 +75,7 @@ const GameOver: FC = () => {
       socket.removeAllListeners();
       socket.disconnect();
     };
-  }, [result, navigate]);
+  }, [result, navigate, showAlert]);
 
   if (!result) {
     return null;
@@ -142,6 +147,12 @@ const GameOver: FC = () => {
           </button>
         </div>
       )}
+
+      <Dialog
+        dialogState={dialogState}
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+      />
     </div>
   );
 };
