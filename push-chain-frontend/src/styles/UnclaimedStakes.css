@@ -110,12 +110,14 @@
 
 .empty-state {
   text-align: center;
-  padding: 4rem 2rem;
-  background: rgba(10, 10, 10, 0.8);
-  border: 3px solid #DA76EC;
-  border-radius: 20px;
-  box-shadow: 0 0 30px rgba(218, 118, 236, 0.3);
-  margin-top: 2rem;
+  padding: 3rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid #DA76EC;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(218, 118, 236, 0.2);
 }
 
 .empty-icon {
@@ -160,12 +162,11 @@
 
 .error-state {
   text-align: center;
-  padding: 4rem 2rem;
-  background: rgba(10, 10, 10, 0.8);
-  border: 3px solid #ff5555;
-  border-radius: 20px;
-  box-shadow: 0 0 30px rgba(255, 85, 85, 0.3);
-  margin-top: 2rem;
+  padding: 3rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid #ff5555;
+  border-radius: 8px;
+  box-shadow: 0 0 10px rgba(255, 85, 85, 0.3);
 }
 
 .error-state h2 {
@@ -210,35 +211,23 @@
 .stakes-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 2rem;
+  gap: 1.5rem;
+  margin-top: 2rem;
 }
 
 .stake-card {
-  background: rgba(10, 10, 10, 0.8);
-  border: 3px solid #DA76EC;
-  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid #DA76EC;
+  border-radius: 8px;
   padding: 1.5rem;
   transition: all 0.3s ease;
-  box-shadow: 0 0 15px rgba(218, 118, 236, 0.3);
-  position: relative;
-  overflow: hidden;
-}
-
-.stake-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, #DA76EC 0%, #9d5ff5 100%);
+  box-shadow: 0 0 10px rgba(218, 118, 236, 0.2);
 }
 
 .stake-card:hover {
-  transform: translateY(-4px);
-  border-color: #e88ff1;
-  box-shadow: 0 8px 30px rgba(218, 118, 236, 0.5),
-              0 0 40px rgba(218, 118, 236, 0.3);
+  background: rgba(218, 118, 236, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 0 20px rgba(218, 118, 236, 0.4);
 }
 
 .stake-header {
@@ -307,48 +296,23 @@
 
 .btn-claim {
   width: 100%;
-  background: linear-gradient(135deg, #DA76EC 0%, #9d5ff5 100%);
-  color: #fff;
+  background: #DA76EC;
+  color: #000;
   border: 2px solid #DA76EC;
   padding: 1rem 1.5rem;
-  font-size: 0.85rem;
+  font-size: 0.75rem;
   font-family: 'Press Start 2P', monospace;
-  border-radius: 10px;
+  border-radius: 4px;
   cursor: pointer;
   transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
   text-transform: uppercase;
-  box-shadow: 0 0 20px rgba(218, 118, 236, 0.4);
-  position: relative;
-  overflow: hidden;
-}
-
-.btn-claim::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 0;
-  height: 0;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.2);
-  transform: translate(-50%, -50%);
-  transition: width 0.6s, height 0.6s;
-}
-
-.btn-claim:hover:not(:disabled)::before {
-  width: 300px;
-  height: 300px;
+  font-weight: bold;
 }
 
 .btn-claim:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 25px rgba(218, 118, 236, 0.6),
-              0 0 40px rgba(218, 118, 236, 0.4);
-  border-color: #e88ff1;
+  background: rgba(218, 118, 236, 0.8);
+  transform: scale(1.02);
+  box-shadow: 0 0 15px rgba(218, 118, 236, 0.5);
 }
 
 .btn-claim:disabled {
