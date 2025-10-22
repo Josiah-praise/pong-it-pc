@@ -10,6 +10,10 @@ interface GameOverResult {
   message: string
   finalScore: [number, number]
   rating: number
+  isWinner?: boolean
+  isStaked?: boolean
+  stakeAmount?: string
+  roomCode?: string
   stats: {
     duration?: number
     hits?: number
@@ -52,8 +56,24 @@ const GameOver: FC = () => {
 
     socketRef.current = socket;
 
+    // Wait for connection before joining game-over room
+    socket.on('connect', () => {
+      console.log(`✅ Socket connected: ${socket.id}`);
+      console.log(`🎮 Joining game-over room as ${username}`);
+      socket.emit('joinGameOverRoom', { username });
+    });
+
     socket.on('rematchRequested', (data: any) => {
+      console.log('📨 ✅ RECEIVED rematch request from:', data?.from || 'unknown');
+      console.log('📨 Full data:', data);
       setRematchRequested(true);
+    });
+
+    socket.on('error', (error: any) => {
+      console.error('❌ Socket error:', error);
+      if (error.message && error.message.includes('rematch')) {
+        showAlert(error.message, 'Rematch Error');
+      }
     });
 
     socket.on('gameStart', (data: any) => {
@@ -72,6 +92,7 @@ const GameOver: FC = () => {
     });
 
     return () => {
+      socket.emit('leaveGameOver');
       socket.removeAllListeners();
       socket.disconnect();
     };
@@ -82,9 +103,13 @@ const GameOver: FC = () => {
   }
 
   const handleRematch = () => {
+    console.log('🔄 Sending rematch request...');
     if (socketRef.current) {
+      console.log(`📤 Emitting requestRematch via socket ${socketRef.current.id}`);
       socketRef.current.emit('requestRematch');
       setWaitingForResponse(true);
+    } else {
+      console.error('❌ No socket ref available for rematch request');
     }
   };
 
@@ -103,11 +128,24 @@ const GameOver: FC = () => {
 
   const handleGoHome = () => {
     if (socketRef.current) {
+      socketRef.current.emit('leaveGameOver');
       socketRef.current.emit('leaveRoom');
       socketRef.current.disconnect();
     }
     navigate('/');
   };
+
+  const handleClaimPrize = () => {
+    navigate('/my-wins');
+  };
+
+  const handleNewStakedMatch = () => {
+    navigate('/');
+    // Could add a state parameter to pre-select staked match mode
+  };
+
+  const isStaked = result.isStaked || false;
+  const isWinner = result.isWinner || false;
 
   return (
     <div className="game-over">
@@ -117,9 +155,19 @@ const GameOver: FC = () => {
         <p>New Rating: {result.rating}</p>
         <p>Game Duration: {Math.round((result.stats.duration || 0) / 1000)}s</p>
         <p>Total Hits: {result.stats.hits || 0}</p>
+        {isStaked && result.stakeAmount && (
+          <p className="prize-info">Prize: {result.stakeAmount} PC 💰</p>
+        )}
       </div>
 
-      {rematchRequested && (
+      {isStaked && (
+        <div className="staked-info-banner">
+          <span>🎲 Staked Match Complete</span>
+          <p>Rematch unavailable for staked games. {isWinner ? 'Claim your prize' : 'Start a new match'} to play again!</p>
+        </div>
+      )}
+
+      {rematchRequested && !isStaked && (
         <div className="rematch-request">
           <p>Opponent wants a rematch!</p>
           <div className="button-group">
@@ -135,16 +183,36 @@ const GameOver: FC = () => {
 
       {!rematchRequested && (
         <div className="button-group">
-          <button
-            onClick={handleRematch}
-            disabled={waitingForResponse}
-            className="rematch-btn"
-          >
-            {waitingForResponse ? 'Waiting for opponent...' : 'Request Rematch'}
-          </button>
-          <button onClick={handleGoHome} className="home-btn">
-            Back to Home
-          </button>
+          {isStaked ? (
+            // Staked game buttons
+            <>
+              {isWinner && (
+                <button onClick={handleClaimPrize} className="claim-btn">
+                  💰 Claim Prize
+                </button>
+              )}
+              <button onClick={handleNewStakedMatch} className="new-match-btn">
+                ⚡ New Staked Match
+              </button>
+              <button onClick={handleGoHome} className="home-btn">
+                Back to Home
+              </button>
+            </>
+          ) : (
+            // Unstaked game buttons
+            <>
+              <button
+                onClick={handleRematch}
+                disabled={waitingForResponse}
+                className="rematch-btn"
+              >
+                {waitingForResponse ? 'Waiting for opponent...' : 'Request Rematch'}
+              </button>
+              <button onClick={handleGoHome} className="home-btn">
+                Back to Home
+              </button>
+            </>
+          )}
         </div>
       )}
 

@@ -100,6 +100,16 @@ class RoomManager {
     return roomCode ? this.rooms.get(roomCode) : null;
   }
 
+  getRoomByUsername(username) {
+    // Search all rooms for a player with this username
+    for (const room of this.rooms.values()) {
+      if (room.host?.name === username || room.guest?.name === username) {
+        return room;
+      }
+    }
+    return null;
+  }
+
   markGuestStaked(roomCode) {
     const room = this.rooms.get(roomCode);
     if (room) {
@@ -136,7 +146,10 @@ class RoomManager {
 
     if (room.guest && room.guest.socketId === socketId) {
       room.guest = null;
-      room.status = 'waiting';
+      // Don't reset status if game is finished (preserving for rematch)
+      if (room.status !== 'finished') {
+        room.status = 'waiting';
+      }
       this.playerRooms.delete(socketId);
       return room;
     }
@@ -144,9 +157,61 @@ class RoomManager {
     return null;
   }
 
+  detachPlayerFromRoom(socketId) {
+    const roomCode = this.playerRooms.get(socketId);
+    if (!roomCode) return null;
+
+    const room = this.rooms.get(roomCode);
+    if (!room) {
+      this.playerRooms.delete(socketId);
+      return null;
+    }
+
+    if (room.host && room.host.socketId === socketId) {
+      room.host.socketId = null;
+    }
+
+    if (room.guest && room.guest.socketId === socketId) {
+      room.guest.socketId = null;
+    }
+
+    this.playerRooms.delete(socketId);
+    return room;
+  }
+
+  attachPlayerSocket(roomCode, username, socketId) {
+    const room = this.rooms.get(roomCode);
+    if (!room) return false;
+
+    const updateMapping = (player) => {
+      if (!player || player.name !== username) return false;
+
+      if (player.socketId && this.playerRooms.get(player.socketId) === roomCode) {
+        this.playerRooms.delete(player.socketId);
+      }
+
+      player.socketId = socketId;
+      this.playerRooms.set(socketId, roomCode);
+      return true;
+    };
+
+    if (updateMapping(room.host)) return true;
+    if (updateMapping(room.guest)) return true;
+
+    return false;
+  }
+
   endGame(roomCode) {
     const room = this.rooms.get(roomCode);
-    if (!room) return;
+    if (!room) {
+      console.log(`⚠️ roomManager.endGame: Room ${roomCode} not found`);
+      return;
+    }
+
+    console.log(`🗑️  roomManager.endGame: DESTROYING room ${roomCode}`);
+    console.log(`   - Host: ${room.host?.name}, Guest: ${room.guest?.name}`);
+    console.log(`   - Status: ${room.status}, isStaked: ${room.isStaked}`);
+    console.trace('   - Called from:'); // Show stack trace
 
     if (room.host) {
       this.playerRooms.delete(room.host.socketId);
@@ -156,6 +221,7 @@ class RoomManager {
     }
 
     this.rooms.delete(roomCode);
+    console.log(`✅ Room ${roomCode} destroyed`);
   }
 
   addSpectator(roomCode, spectatorSocketId, spectatorName) {

@@ -11,6 +11,7 @@ class MultiplayerHandler {
     this.gameManager = new GameManager();
     this.leaderboardManager = new LeaderboardManager();
     this.gameLoops = new Map();
+    this.gameOverPlayers = new Map(); // Track players in game-over state: username -> socketId
 
     setInterval(() => {
       this.roomManager.cleanupStaleRooms();
@@ -82,8 +83,39 @@ class MultiplayerHandler {
       this.handleLeaveAbandonedRoom(socket, roomCode);
     });
 
+    socket.on('joinGameOverRoom', ({ username }) => {
+      console.log(`🎮 Player ${username} joined game-over state with socket ${socket.id}`);
+      this.gameOverPlayers.set(username, socket.id);
+
+      // Re-attach player socket to room if game is preserving for rematch
+      const room = this.roomManager.getRoomByUsername(username);
+      if (room) {
+        const attached = this.roomManager.attachPlayerSocket(room.code, username, socket.id);
+        if (attached) {
+          console.log(`🔄 Reattached ${username} to room ${room.code} with new socket ${socket.id}`);
+          // Ensure socket joins the original room channel so rematch start events propagate
+          socket.join(room.code);
+        }
+      }
+    });
+
+    socket.on('leaveGameOver', () => {
+      this.handleLeaveGameOver(socket);
+    });
+
     socket.on('disconnect', () => {
       this.handleDisconnect(socket);
+      // Clean up game-over tracking
+      for (const [username, socketId] of this.gameOverPlayers.entries()) {
+        if (socketId === socket.id) {
+          this.gameOverPlayers.delete(username);
+          console.log(`🚪 Player ${username} left game-over state`);
+          
+          // Check if this was the last player in a preserved room
+          this.checkAndCleanupPreservedRoom(username);
+          break;
+        }
+      }
     });
 
     socket.on('getLeaderboard', async () => {
@@ -277,12 +309,22 @@ class MultiplayerHandler {
   }
 
   async handleGameOver(roomCode, winner, game) {
+    console.log(`\n🎮 ========== GAME OVER ==========`);
+    console.log(`🏆 Room: ${roomCode}, Winner: ${winner?.name}`);
+    console.log(`📊 Game state:`, { 
+      players: game.players?.map(p => p.name), 
+      score: game.score 
+    });
+    
     const loser = game.players.find(p => p.socketId !== winner.socketId);
 
     if (!winner || !loser) {
+      console.log(`⚠️ Invalid game over state - ending game without processing`);
       this.endGame(roomCode);
       return;
     }
+    
+    console.log(`👥 Winner: ${winner.name}, Loser: ${loser.name}`);
 
     const ratingResult = await this.leaderboardManager.processGameResult(
       winner.name,
@@ -365,9 +407,27 @@ class MultiplayerHandler {
       // Continue with normal game end flow even if save fails
     }
 
+    // Check if this is a staked game
+    const room = this.roomManager.getRoom(roomCode);
+    const isStaked = room?.isStaked || false;
+    
+    // Get game record for stake amount if staked
+    let stakeAmount = null;
+    if (isStaked) {
+      try {
+        const gameRecord = await Game.findOne({ roomCode });
+        stakeAmount = gameRecord?.stakeAmount || null;
+      } catch (error) {
+        console.error('Error fetching game record for stake amount:', error);
+      }
+    }
+
     const gameOverData = {
       winner: winner.socketId,
       winnerName: winner.name,
+      isStaked,
+      stakeAmount,
+      roomCode,
       ratings: ratingResult ? {
         [winner.socketId]: ratingResult.winner.newRating,
         [loser.socketId]: ratingResult.loser.newRating
@@ -386,7 +446,25 @@ class MultiplayerHandler {
     const leaderboard = await this.leaderboardManager.getTopPlayers(10);
     this.io.emit('leaderboardUpdate', leaderboard);
 
-    this.endGame(roomCode);
+    // Preserve room for rematch (only for non-staked games)
+    // Note: 'room' is already declared above on line 390
+    const shouldPreserveRoom = room && !room.isStaked;
+    
+    // Mark room as finished BEFORE old sockets disconnect
+    if (room && shouldPreserveRoom) {
+      room.status = 'finished';
+      if (room.host) {
+        room.host.socketId = room.host.socketId || null;
+      }
+      if (room.guest) {
+        room.guest.socketId = room.guest.socketId || null;
+      }
+      console.log(`🏠 Game over for room ${roomCode} - marked as finished, preserving for rematch`);
+    } else {
+      console.log(`🏠 Game over for room ${roomCode} - preserving room: ${shouldPreserveRoom}`);
+    }
+    
+    this.endGame(roomCode, shouldPreserveRoom);
   }
 
   handlePaddleMove(socket, { position }) {
@@ -401,14 +479,19 @@ class MultiplayerHandler {
 
   handleLeaveRoom(socket) {
     const room = this.roomManager.getRoomByPlayer(socket.id);
-    if (!room) return;
+    if (!room) {
+      console.log(`⚠️ handleLeaveRoom: No room found for socket ${socket.id}`);
+      return;
+    }
 
     const roomCode = room.code;
+    console.log(`🚪 handleLeaveRoom: Player leaving room ${roomCode}`);
 
     socket.leave(roomCode);
 
     this.io.to(roomCode).emit('opponentLeft');
 
+    console.log(`🗑️  handleLeaveRoom: Destroying room ${roomCode}`);
     this.endGame(roomCode);
 
     this.roomManager.removePlayerFromRoom(socket.id);
@@ -520,6 +603,9 @@ class MultiplayerHandler {
   }
 
   async handleDisconnect(socket) {
+    console.log(`\n🔌 ========== DISCONNECT ==========`);
+    console.log(`👤 Socket ${socket.id} disconnecting`);
+    
     this.handleLeaveSpectate(socket);
 
     const room = this.roomManager.getRoomByPlayer(socket.id);
@@ -530,6 +616,7 @@ class MultiplayerHandler {
 
     const roomCode = room.code;
     const isHost = room.host && room.host.socketId === socket.id;
+    console.log(`🏠 Room ${roomCode}: isHost=${isHost}, isStaked=${room.isStaked}`);
     const isGuest = room.guest && room.guest.socketId === socket.id;
 
     console.log(`🔌 handleDisconnect - Room: ${roomCode}`, {
@@ -554,7 +641,7 @@ class MultiplayerHandler {
     // CASE 2: Guest leaves staked room before staking -> Keep room open
     if (room.isStaked && isGuest && !room.guestStaked) {
       console.log(`🔄 Guest disconnected from staked room ${roomCode} before staking - keeping room open`);
-      this.roomManager.removePlayerFromRoom(socket.id);
+      this.roomManager.detachPlayerFromRoom(socket.id);
       // Notify host that guest left before staking
       this.io.to(roomCode).emit('guestLeftBeforeStaking', {
         message: 'Player disconnected before staking. Room is still open.'
@@ -562,13 +649,20 @@ class MultiplayerHandler {
       return;
     }
 
-    // CASE 3: For non-staked games or if guest has staked: end the game
-    console.log(`❌ Ending game for room ${roomCode} - opponent disconnected`);
+    // CASE 3: Game is finished (game over screen) -> Don't destroy room, keep for rematch
+    if (room.status === 'finished') {
+      console.log(`🎮 Game finished for room ${roomCode} - old socket disconnecting, keeping room for rematch`);
+      this.roomManager.detachPlayerFromRoom(socket.id);
+      return;
+    }
+
+    // CASE 4: Active game - opponent disconnected during gameplay -> end the game
+    console.log(`❌ Ending active game for room ${roomCode} (status: ${room.status}) - opponent disconnected during gameplay`);
     this.io.to(roomCode).emit('opponentDisconnected');
 
     this.endGame(roomCode);
 
-    this.roomManager.removePlayerFromRoom(socket.id);
+    this.roomManager.detachPlayerFromRoom(socket.id);
   }
 
   handlePauseGame(socket) {
@@ -634,25 +728,88 @@ class MultiplayerHandler {
   }
 
   handleRematchRequest(socket) {
-    const room = this.roomManager.getRoomByPlayer(socket.id);
-    if (!room) return;
+    const requesterUsername = socket.handshake.query.username;
+    
+    console.log(`\n🔄 ========== REMATCH REQUEST ==========`);
+    console.log(`👤 From: ${requesterUsername} (socket: ${socket.id})`);
+    console.log(`📋 GameOver players tracked:`, Array.from(this.gameOverPlayers.entries()));
+    console.log(`🗂️  Total rooms active:`, this.roomManager.rooms.size);
+    
+    // DEBUG: List all rooms
+    console.log(`📦 All active rooms:`);
+    for (const [code, room] of this.roomManager.rooms.entries()) {
+      console.log(`   - ${code}: host=${room.host?.name}, guest=${room.guest?.name}, status=${room.status}, isStaked=${room.isStaked}`);
+    }
+    
+    // Try to find room by username (more reliable than socket.id for game-over state)
+    const room = this.roomManager.getRoomByUsername(requesterUsername);
+    
+    if (!room) {
+      console.log(`❌ No room found for ${requesterUsername}`);
+      console.log(`🔍 This likely means the room was destroyed before game-over screen`);
+      socket.emit('error', { 
+        message: 'Game session ended. Please start a new match.' 
+      });
+      return;
+    }
 
-    const playerIndex = room.host.socketId === socket.id ? 0 : 1;
-    const opponent = playerIndex === 0 ? room.guest : room.host;
+    console.log(`✅ Found room: ${room.code} (host: ${room.host?.name}, guest: ${room.guest?.name}, isStaked: ${room.isStaked})`);
 
-    if (!opponent) return;
+    // Check if this is a staked game
+    if (room.isStaked) {
+      console.log(`🚫 Blocking rematch for staked game: ${room.code}`);
+      socket.emit('error', { 
+        message: 'Rematch not available for staked games. Please start a new match.' 
+      });
+      return;
+    }
 
-    const opponentSocket = this.io.sockets.sockets.get(opponent.socketId);
+    // Determine opponent
+    const opponent = room.host?.name === requesterUsername ? room.guest : room.host;
+
+    if (!opponent) {
+      console.log(`⚠️ No opponent found in room ${room.code}`);
+      socket.emit('error', { 
+        message: 'No opponent found. Cannot send rematch request.' 
+      });
+      return;
+    }
+
+    // Find opponent's current socket ID from game-over tracking
+    const opponentSocketId = this.gameOverPlayers.get(opponent.name);
+    console.log(`🔍 Looking for opponent: ${opponent.name}, tracked socket: ${opponentSocketId}`);
+    
+    if (!opponentSocketId) {
+      console.log(`❌ Opponent ${opponent.name} not in game-over state`);
+      socket.emit('error', { 
+        message: 'Opponent has left. Cannot send rematch request.' 
+      });
+      return;
+    }
+    
+    const opponentSocket = this.io.sockets.sockets.get(opponentSocketId);
+
     if (opponentSocket) {
+      console.log(`✅ Sending rematch request from ${requesterUsername} to ${opponent.name}`);
       opponentSocket.emit('rematchRequested', {
-        from: playerIndex === 0 ? room.host.name : room.guest.name
+        from: requesterUsername
+      });
+    } else {
+      console.log(`❌ Opponent ${opponent.name} socket ${opponentSocketId} not found in active sockets`);
+      socket.emit('error', { 
+        message: 'Opponent has disconnected. Cannot send rematch request.' 
       });
     }
+    
+    console.log(`=========================================\n`);
   }
 
   handleRematchResponse(socket, { accepted }) {
     const room = this.roomManager.getRoomByPlayer(socket.id);
-    if (!room) return;
+    if (!room) {
+      console.log(`⚠️ handleRematchResponse: No room found for socket ${socket.id}`);
+      return;
+    }
 
     if (accepted) {
       this.roomManager.startGame(room.code);
@@ -724,7 +881,40 @@ class MultiplayerHandler {
     }
   }
 
-  endGame(roomCode) {
+  handleLeaveGameOver(socket) {
+    const username = socket.handshake.query.username;
+    console.log(`👋 Player ${username} explicitly leaving game-over screen`);
+    
+    // Remove from tracking
+    this.gameOverPlayers.delete(username);
+    
+    // Check if this was the last player in a preserved room
+    this.checkAndCleanupPreservedRoom(username);
+  }
+
+  checkAndCleanupPreservedRoom(username) {
+    // Find rooms where this player was involved
+    const allRooms = Array.from(this.roomManager.rooms.values());
+    
+    for (const room of allRooms) {
+      const involvedInRoom = 
+        room.host?.name === username || 
+        room.guest?.name === username;
+      
+      if (!involvedInRoom) continue;
+      
+      // Check if both players have left game-over state
+      const hostInGameOver = room.host && this.gameOverPlayers.has(room.host.name);
+      const guestInGameOver = room.guest && this.gameOverPlayers.has(room.guest.name);
+      
+      if (!hostInGameOver && !guestInGameOver) {
+        console.log(`🧹 Both players left game-over - cleaning up preserved room ${room.code}`);
+        this.roomManager.endGame(room.code);
+      }
+    }
+  }
+
+  endGame(roomCode, preserveRoom = false) {
     if (this.gameLoops.has(roomCode)) {
       clearInterval(this.gameLoops.get(roomCode));
       this.gameLoops.delete(roomCode);
@@ -736,7 +926,12 @@ class MultiplayerHandler {
     }
 
     this.gameManager.endGame(roomCode);
-    this.roomManager.endGame(roomCode);
+    
+    // Only destroy the room if explicitly requested (e.g., player forfeits/abandons)
+    // For normal game completion, preserve room for rematch
+    if (!preserveRoom) {
+      this.roomManager.endGame(roomCode);
+    }
   }
 }
 

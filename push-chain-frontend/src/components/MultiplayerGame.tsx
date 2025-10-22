@@ -44,6 +44,7 @@ interface LocationState {
 const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const socketRef = useRef<Socket | null>(null);
+  const isNavigatingToGameOver = useRef(false); // Track if navigating to game-over
   const [isWaiting, setIsWaiting] = useState(true);
   const [roomCode, setRoomCode] = useState<string | null>(null);
   const [gameData, setGameData] = useState<GameData>({
@@ -467,13 +468,21 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
 
       const isWinner = result.winner === socket.id;
 
+      // Don't disconnect socket on game over - keep it alive for rematch
+      // The GameOver component will create its own socket for game-over state
+      console.log('🎮 Game over received, navigating while keeping game socket alive');
+      
+      // Set flag to prevent socket disconnection on unmount
+      isNavigatingToGameOver.current = true;
+
       navigate('/game-over', {
         state: {
           ...result,
           isWinner,
           message: isWinner ? 'You Won!' : 'You Lost!',
           rating: result.ratings?.[socket.id],
-          finalScore: result.finalScore || result.stats?.score
+          finalScore: result.finalScore || result.stats?.score,
+          roomCode: result.roomCode // Pass roomCode for cleanup later
         }
       });
     });
@@ -537,6 +546,15 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
     });
 
     return () => {
+      // Don't disconnect if navigating to game-over screen (keep socket alive for rematch)
+      if (isNavigatingToGameOver.current) {
+        console.log('🎮 Skipping socket disconnect - navigating to game-over screen');
+        socket.removeAllListeners(); // Still remove listeners to prevent memory leaks
+        return;
+      }
+      
+      // Normal cleanup for other navigation (back to home, etc.)
+      console.log('🧹 Cleaning up game socket');
       socket.removeAllListeners();
       socket.disconnect();
     };

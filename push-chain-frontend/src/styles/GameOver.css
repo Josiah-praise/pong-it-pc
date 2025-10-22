@@ -119,6 +119,72 @@
   box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
 }
 
+/* Staked game specific buttons */
+.claim-btn {
+  background: linear-gradient(135deg, #DA76EC 0%, #9d5ff5 100%);
+  color: #fff;
+  border: 2px solid #DA76EC;
+}
+
+.claim-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(218, 118, 236, 0.6);
+}
+
+.new-match-btn {
+  background: rgba(218, 118, 236, 0.2);
+  color: #DA76EC;
+  border: 2px solid #DA76EC;
+}
+
+.new-match-btn:hover {
+  background: rgba(218, 118, 236, 0.3);
+  transform: scale(1.05);
+  box-shadow: 0 0 15px rgba(218, 118, 236, 0.4);
+}
+
+/* Staked info banner */
+.staked-info-banner {
+  background: rgba(218, 118, 236, 0.1);
+  border: 2px solid #DA76EC;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.staked-info-banner span {
+  display: block;
+  font-family: 'Press Start 2P', monospace;
+  color: #DA76EC;
+  font-size: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.staked-info-banner p {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.75rem;
+  line-height: 1.6;
+  margin: 0;
+}
+
+/* Prize info */
+.prize-info {
+  color: #ffaa00 !important;
+  font-size: 1.2rem !important;
+  font-weight: bold;
+  animation: prizeGlow 2s ease-in-out infinite;
+}
+
+@keyframes prizeGlow {
+  0%, 100% {
+    text-shadow: 0 0 10px rgba(255, 170, 0, 0.5);
+  }
+  50% {
+    text-shadow: 0 0 20px rgba(255, 170, 0, 0.8);
+  }
+}
+
 .accept-btn {
   background: #DA76EC;
   color: #000;
