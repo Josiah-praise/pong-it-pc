@@ -191,9 +191,6 @@ const GameOver: FC = () => {
                   💰 Claim Prize
                 </button>
               )}
-              <button onClick={handleNewStakedMatch} className="new-match-btn">
-                ⚡ New Staked Match
-              </button>
               <button onClick={handleGoHome} className="home-btn">
                 Back to Home
               </button>
