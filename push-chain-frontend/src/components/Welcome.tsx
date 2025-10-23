@@ -48,6 +48,7 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet 
   const { connectionStatus } = usePushWalletContext();
   const { pushChainClient } = usePushChainClient();
   const isConnected = connectionStatus === 'connected';
+  const isWalletReady = isConnected && !!pushChainClient?.universal?.account;
   
   // Get the user's account address from Push Chain client
   const address = pushChainClient?.universal?.account?.toLowerCase() || null;
@@ -301,6 +302,10 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet 
   };
 
   const handleStartGame = () => {
+    if (!isWalletReady) {
+      showAlert('Please connect your wallet to start a match.', 'Wallet Not Connected');
+      return;
+    }
     promptUsername((username) => {
       setGameState((prev: any) => ({
         ...prev,
@@ -312,6 +317,10 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet 
   };
 
   const handleCreateRoom = () => {
+    if (!isWalletReady) {
+      showAlert('Please connect your wallet to create a room.', 'Wallet Not Connected');
+      return;
+    }
     promptUsername((username) => {
       setGameState((prev: any) => ({
         ...prev,
@@ -323,6 +332,10 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet 
   };
 
   const handleJoinRoom = () => {
+    if (!isWalletReady) {
+      showAlert('Please connect your wallet to join a room.', 'Wallet Not Connected');
+      return;
+    }
     promptUsername((username) => {
       const modal = document.createElement('dialog');
       modal.innerHTML = `
@@ -380,12 +393,11 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet 
   };
 
   const handleCreateStakedMatch = () => {
+    if (!isWalletReady) {
+      showAlert('Please connect your wallet to create a staked match', 'Wallet Not Connected');
+      return;
+    }
     promptUsername((username) => {
-      if (!isConnected) {
-        showAlert('Please connect your wallet to create a staked match', 'Wallet Not Connected');
-        return;
-      }
-
       const modal = document.createElement('dialog');
       modal.className = 'stake-modal';
       modal.innerHTML = `
@@ -594,12 +606,9 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet 
           <button
             onClick={handleCreateStakedMatch}
             className="mode-button staked-match"
-            disabled={!isConnected}
           >
             <span className="button-icon">💎</span>
-            <span className="button-text">
-              {isConnected ? 'Staked Match' : 'Connect Wallet First'}
-            </span>
+            <span className="button-text">Staked Match</span>
           </button>
         </div>
 
