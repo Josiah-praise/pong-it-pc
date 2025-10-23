@@ -121,7 +121,7 @@ class RoomManager {
 
   startGame(roomCode) {
     const room = this.rooms.get(roomCode);
-    if (room && room.status === 'ready') {
+    if (room && (room.status === 'ready' || room.status === 'finished')) {
       room.status = 'playing';
       return true;
     }

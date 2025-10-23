@@ -619,6 +619,8 @@ class MultiplayerHandler {
     console.log(`🏠 Room ${roomCode}: isHost=${isHost}, isStaked=${room.isStaked}`);
     const isGuest = room.guest && room.guest.socketId === socket.id;
 
+    const activeGame = this.gameManager.getGame(roomCode);
+
     console.log(`🔌 handleDisconnect - Room: ${roomCode}`, {
       isStaked: room.isStaked,
       isHost,
@@ -626,7 +628,8 @@ class MultiplayerHandler {
       guestStaked: room.guestStaked,
       hostStaked: room.hostStaked,
       roomStatus: room.status,
-      hasGuest: !!room.guest
+      hasGuest: !!room.guest,
+      hasActiveGame: !!activeGame
     });
 
     // CASE 1: Host leaves staked room before anyone joins -> Mark as abandoned
@@ -650,7 +653,7 @@ class MultiplayerHandler {
     }
 
     // CASE 3: Game is finished (game over screen) -> Don't destroy room, keep for rematch
-    if (room.status === 'finished') {
+    if (room.status === 'finished' || !activeGame) {
       console.log(`🎮 Game finished for room ${roomCode} - old socket disconnecting, keeping room for rematch`);
       this.roomManager.detachPlayerFromRoom(socket.id);
       return;
