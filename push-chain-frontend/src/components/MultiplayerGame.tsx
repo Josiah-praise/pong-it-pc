@@ -60,6 +60,7 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
   const [isPaused, setIsPaused] = useState(false);
   const [pausedBy, setPausedBy] = useState<string | null>(null);
   const [pausesRemaining, setPausesRemaining] = useState(2);
+  const [pauseCountdown, setPauseCountdown] = useState<number | null>(null);
   const [showRematchRequest, setShowRematchRequest] = useState(false);
   const [rematchRequester, setRematchRequester] = useState<string | null>(null);
   const [showPlayer2StakingModal, setShowPlayer2StakingModal] = useState(false);
@@ -492,11 +493,13 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
       setIsPaused(true);
       setPausedBy(data.pausedBy);
       setPausesRemaining(data.pausesRemaining);
+      setPauseCountdown(10);
     });
 
     socket.on('gameResumed', () => {
       setIsPaused(false);
       setPausedBy(null);
+      setPauseCountdown(null);
     });
 
     socket.on('playerForfeited', (data: { forfeitedPlayer: string; winner: string }) => {
@@ -576,6 +579,22 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
       if (cleanup) cleanup();
     };
   }, [setupSocket, username, navigate, showAlert]);
+
+  // Pause countdown timer
+  useEffect(() => {
+    if (pauseCountdown === null) return;
+
+    if (pauseCountdown <= 0) {
+      setPauseCountdown(null);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      setPauseCountdown(prev => (prev !== null ? prev - 1 : null));
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [pauseCountdown]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -776,10 +795,16 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
 
       {isPaused && (
         <div className="pause-overlay">
-          <div className="pause-message">
+          <div className="pause-modal">
             <h2>Game Paused</h2>
-            <p>Paused by: {pausedBy}</p>
-            <p>Resuming in 10 seconds...</p>
+            <p>
+              {pausedBy === username ? 'You' : pausedBy} paused the game. {pausedBy === username
+                ? `You have ${pausesRemaining} pause${pausesRemaining !== 1 ? 's' : ''} remaining.`
+                : `${pausedBy} has ${pausesRemaining} pause${pausesRemaining !== 1 ? 's' : ''} remaining.`}
+            </p>
+            <p>
+              Resuming in {pauseCountdown ?? 0} second{(pauseCountdown ?? 0) !== 1 ? 's' : ''}...
+            </p>
           </div>
         </div>
       )}

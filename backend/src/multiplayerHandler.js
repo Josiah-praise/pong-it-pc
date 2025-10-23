@@ -290,6 +290,14 @@ class MultiplayerHandler {
       const result = this.gameManager.updateGameState(roomCode);
 
       if (!result) {
+        const activeGame = this.gameManager.getGame(roomCode);
+
+        if (activeGame && activeGame.isPaused) {
+          // While paused, keep broadcasting the static state so clients stay in sync
+          this.io.to(roomCode).emit('gameUpdate', activeGame);
+          return;
+        }
+
         clearInterval(interval);
         this.gameLoops.delete(roomCode);
         return;
