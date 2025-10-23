@@ -266,7 +266,7 @@ class MultiplayerHandler {
 
   startGame(roomCode) {
     const room = this.roomManager.getRoom(roomCode);
-    if (!room || room.status !== 'ready') return;
+    if (!room || (room.status !== 'ready' && room.status !== 'finished')) return;
 
     this.roomManager.startGame(roomCode);
 
@@ -620,6 +620,7 @@ class MultiplayerHandler {
     const isGuest = room.guest && room.guest.socketId === socket.id;
 
     const activeGame = this.gameManager.getGame(roomCode);
+    const isGameFinished = !activeGame || activeGame.status === 'finished';
 
     console.log(`🔌 handleDisconnect - Room: ${roomCode}`, {
       isStaked: room.isStaked,
@@ -629,7 +630,8 @@ class MultiplayerHandler {
       hostStaked: room.hostStaked,
       roomStatus: room.status,
       hasGuest: !!room.guest,
-      hasActiveGame: !!activeGame
+      hasActiveGame: !!activeGame,
+      gameStatus: activeGame?.status
     });
 
     // CASE 1: Host leaves staked room before anyone joins -> Mark as abandoned
@@ -653,7 +655,7 @@ class MultiplayerHandler {
     }
 
     // CASE 3: Game is finished (game over screen) -> Don't destroy room, keep for rematch
-    if (room.status === 'finished' || !activeGame) {
+    if (room.status === 'finished' || isGameFinished) {
       console.log(`🎮 Game finished for room ${roomCode} - old socket disconnecting, keeping room for rematch`);
       this.roomManager.detachPlayerFromRoom(socket.id);
       return;
@@ -826,7 +828,23 @@ class MultiplayerHandler {
       this.io.to(room.code).emit('gameStart', gameState);
       this.startGameLoop(room.code);
     } else {
-      this.io.to(room.code).emit('rematchDeclined');
+      const hostSocketId = room.host?.name ? this.gameOverPlayers.get(room.host.name) : null;
+      const guestSocketId = room.guest?.name ? this.gameOverPlayers.get(room.guest.name) : null;
+
+      let requesterSocketId = null;
+
+      if (socket.id === hostSocketId && guestSocketId) {
+        requesterSocketId = guestSocketId;
+      } else if (socket.id === guestSocketId && hostSocketId) {
+        requesterSocketId = hostSocketId;
+      }
+
+      if (requesterSocketId) {
+        const requesterSocket = this.io.sockets.sockets.get(requesterSocketId);
+        if (requesterSocket) {
+          requesterSocket.emit('rematchDeclined');
+        }
+      }
     }
   }
 
@@ -886,6 +904,8 @@ class MultiplayerHandler {
 
   handleLeaveGameOver(socket) {
     const username = socket.handshake.query.username;
+    if (!username) return;
+
     console.log(`👋 Player ${username} explicitly leaving game-over screen`);
     
     // Remove from tracking
@@ -933,7 +953,7 @@ class MultiplayerHandler {
     // Only destroy the room if explicitly requested (e.g., player forfeits/abandons)
     // For normal game completion, preserve room for rematch
     if (!preserveRoom) {
-      this.roomManager.endGame(roomCode);
+    this.roomManager.endGame(roomCode);
     }
   }
 }
