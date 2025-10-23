@@ -3,3 +3,5 @@ node_modules/
 .gitmodules
 package-lock.json
 build/
+dist/
+.claude/

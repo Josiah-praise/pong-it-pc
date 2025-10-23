@@ -120,6 +120,19 @@ const GameHistory: FC<GameHistoryProps> = ({ savedUsername }) => {
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
   };
 
+  const formatEarnings = (value: string): string => {
+    const num = parseFloat(value);
+    if (isNaN(num)) return '0';
+    
+    // For very small numbers, use toPrecision(4) for 4 significant figures
+    if (num < 1) {
+      return parseFloat(num.toPrecision(4)).toString();
+    }
+    
+    // For larger numbers, round to 4 decimal places
+    return num.toFixed(4);
+  };
+
   if (!savedUsername) {
     return (
       <div className="game-history-container">
@@ -166,7 +179,7 @@ const GameHistory: FC<GameHistoryProps> = ({ savedUsername }) => {
           </div>
           <div className="stat-card highlight">
             <span className="stat-label">Earnings</span>
-            <span className="stat-value">{stats.totalEarnings} PC</span>
+            <span className="stat-value">{formatEarnings(stats.totalEarnings)} PC</span>
           </div>
         </div>
       )}
