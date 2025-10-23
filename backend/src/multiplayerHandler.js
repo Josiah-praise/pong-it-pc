@@ -732,10 +732,18 @@ class MultiplayerHandler {
     const playerIndex = game.players.findIndex(p => p.socketId === socket.id);
     const winner = game.players[1 - playerIndex];
 
-    this.io.to(game.roomCode).emit('playerForfeited', {
+    const forfeitingSocket = socket.id;
+    const playerForfeitedPayload = {
       forfeitedPlayer: game.players[playerIndex].name,
       winner: winner.name
-    });
+    };
+
+    this.io.to(game.roomCode).emit('playerForfeited', playerForfeitedPayload);
+
+    const forfeitingPlayerSocket = this.io.sockets.sockets.get(forfeitingSocket);
+    if (forfeitingPlayerSocket) {
+      forfeitingPlayerSocket.emit('playerForfeitedSelf', playerForfeitedPayload);
+    }
 
     this.handleGameOver(game.roomCode, winner, game);
   }

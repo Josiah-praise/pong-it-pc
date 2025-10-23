@@ -513,12 +513,20 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
     });
 
     socket.on('playerForfeited', (data: { forfeitedPlayer: string; winner: string }) => {
+      if (data.forfeitedPlayer !== username) {
+        showAlert(
+          `${data.forfeitedPlayer} forfeited. ${data.winner} wins!`,
+          'Game Over'
+        );
+        soundManager.stopAll();
+        setTimeout(() => navigate('/'), 2000);
+      }
+    });
+
+    socket.on('playerForfeitedSelf', () => {
+      showInfoToast('You forfeited', 'Returning to home.');
       soundManager.stopAll();
-      showAlert(
-        `${data.forfeitedPlayer} forfeited. ${data.winner} wins!`,
-        'Game Over'
-      );
-      setTimeout(() => navigate('/'), 2000);
+      setTimeout(() => navigate('/'), 500);
     });
 
     socket.on('rematchRequested', (data: { from: string }) => {
