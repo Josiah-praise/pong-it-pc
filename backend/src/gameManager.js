@@ -8,8 +8,8 @@ class GameManager {
       id: roomCode,
       roomCode,
       players: [
-        { ...player1, index: 0, socketId: player1.socketId, pausesRemaining: 2 },
-        { ...player2, index: 1, socketId: player2.socketId, pausesRemaining: 2 }
+        { ...player1, index: 0, socketId: player1.socketId, pausesRemaining: 1 },
+        { ...player2, index: 1, socketId: player2.socketId, pausesRemaining: 1 }
       ],
       score: [0, 0],
       ballPos: { x: 0, y: 0 },
@@ -73,7 +73,16 @@ class GameManager {
       return { success: false, error: 'No pauses remaining' };
     }
 
+    if (!game.pauseHistory) {
+      game.pauseHistory = {};
+    }
+
+    if (game.pauseHistory[playerSocketId]) {
+      return { success: false, error: 'You have already used your pause' };
+    }
+
     player.pausesRemaining--;
+    game.pauseHistory[playerSocketId] = true;
     game.isPaused = true;
     game.pausedBy = playerSocketId;
 

@@ -59,7 +59,8 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
   });
   const [isPaused, setIsPaused] = useState(false);
   const [pausedBy, setPausedBy] = useState<string | null>(null);
-  const [pausesRemaining, setPausesRemaining] = useState(2);
+  const [pausesRemaining, setPausesRemaining] = useState(1);
+  const [opponentPausesRemaining, setOpponentPausesRemaining] = useState(1);
   const [pauseCountdown, setPauseCountdown] = useState<number | null>(null);
   const [showRematchRequest, setShowRematchRequest] = useState(false);
   const [rematchRequester, setRematchRequester] = useState<string | null>(null);
@@ -362,8 +363,9 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
 
       const parsedError = parseTransactionError(player2StakingError);
       setStakingErrorMessage(parsedError.message);
+      showAlert(parsedError.message, 'Staking Error');
     }
-  }, [player2StakingError]);
+  }, [player2StakingError, showAlert]);
 
   const setupSocket = useCallback(() => {
     if (!isMounted.current || !username) return;
@@ -492,7 +494,15 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
     socket.on('gamePaused', (data: { pausedBy: string; pausesRemaining: number }) => {
       setIsPaused(true);
       setPausedBy(data.pausedBy);
-      setPausesRemaining(data.pausesRemaining);
+
+      if (data.pausedBy === username) {
+        setPausesRemaining(data.pausesRemaining);
+        showSuccessToast('Pause used', `No more pauses remaining.`);
+      } else {
+        setOpponentPausesRemaining(data.pausesRemaining);
+        showInfoToast(`${data.pausedBy} paused`, `${data.pausedBy} has no more pauses.`);
+      }
+
       setPauseCountdown(10);
     });
 
@@ -724,6 +734,15 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
   const isPlayer1 = playerIndex === 0;
   const isPlayer2 = playerIndex === 1;
 
+  const showInfoToast = useCallback((title: string, message: string) => {
+    // Info toasts should not block gameplay (no modal overlay)
+    console.info(`${title}: ${message}`);
+  }, [showAlert]);
+
+  const showSuccessToast = useCallback((title: string, message: string) => {
+    console.info(`${title}: ${message}`);
+  }, [showAlert]);
+
   return (
     <div className="game-container" ref={containerRef} style={{ touchAction: 'none' }}>
       <AddressDisplay />
@@ -798,10 +817,12 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
           <div className="pause-modal">
             <h2>Game Paused</h2>
             <p>
-              {pausedBy === username ? 'You' : pausedBy} paused the game. {pausedBy === username
-                ? `You have ${pausesRemaining} pause${pausesRemaining !== 1 ? 's' : ''} remaining.`
-                : `${pausedBy} has ${pausesRemaining} pause${pausesRemaining !== 1 ? 's' : ''} remaining.`}
+              {pausedBy === username ? 'You' : pausedBy} paused the game.
             </p>
+            <div className="pause-status">
+              <span>💠 You: {pausesRemaining} pause{pausesRemaining !== 1 ? 's' : ''} left</span>
+              <span>💠 Opponent: {opponentPausesRemaining} pause{opponentPausesRemaining !== 1 ? 's' : ''} left</span>
+            </div>
             <p>
               Resuming in {pauseCountdown ?? 0} second{(pauseCountdown ?? 0) !== 1 ? 's' : ''}...
             </p>
