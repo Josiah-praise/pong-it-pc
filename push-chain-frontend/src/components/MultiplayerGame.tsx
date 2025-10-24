@@ -261,10 +261,22 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username, walletAddress, au
         'Leave the room? You can reclaim your stake from "Unclaimed Stakes".',
         () => {
           if (socketRef.current && roomCode) {
-            socketRef.current.emit('leaveAbandonedRoom', { roomCode });
+            console.log('📤 Emitting leaveAbandonedRoom (forfeit button):', { roomCode });
+            
+            // Use emit with callback to ensure backend received the event
+            socketRef.current.emit('leaveAbandonedRoom', { roomCode }, (ack: any) => {
+              console.log('✅ Backend acknowledged abandonment (forfeit):', ack);
+            });
+            
+            // Wait for backend to process before navigating (increased timeout)
+            setTimeout(() => {
+              soundManager.stopAll();
+              navigate('/');
+            }, 1000);
+          } else {
+            soundManager.stopAll();
+            navigate('/');
           }
-          soundManager.stopAll();
-          navigate('/');
         },
         undefined,
         'Leave Room?'
@@ -720,10 +732,21 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username, walletAddress, au
         () => {
           if (socketRef.current && roomCode) {
             console.log('📤 Emitting leaveAbandonedRoom:', { roomCode });
-            socketRef.current.emit('leaveAbandonedRoom', { roomCode });
+            
+            // Use emit with callback to ensure backend received the event
+            socketRef.current.emit('leaveAbandonedRoom', { roomCode }, (ack: any) => {
+              console.log('✅ Backend acknowledged abandonment:', ack);
+            });
+            
+            // Wait for backend to process before navigating (increased timeout)
+            setTimeout(() => {
+              soundManager.stopAll();
+              navigate('/');
+            }, 1000);
+          } else {
+            soundManager.stopAll();
+            navigate('/');
           }
-          soundManager.stopAll();
-          navigate('/');
         },
         undefined,
         'Leave Room?'

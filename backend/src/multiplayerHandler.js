@@ -78,9 +78,14 @@ class MultiplayerHandler {
       this.handleLeaveRoomBeforeStaking(socket, roomCode);
     });
 
-    socket.on('leaveAbandonedRoom', ({ roomCode }) => {
+    socket.on('leaveAbandonedRoom', ({ roomCode }, callback) => {
       console.log(`🔔 Received leaveAbandonedRoom event - Socket: ${socket.id}, Room: ${roomCode}`);
       this.handleLeaveAbandonedRoom(socket, roomCode);
+      
+      // Send acknowledgment back to client
+      if (callback && typeof callback === 'function') {
+        callback({ status: 'processed', roomCode });
+      }
     });
 
     socket.on('joinGameOverRoom', ({ username }) => {
@@ -643,6 +648,13 @@ class MultiplayerHandler {
     });
 
     // CASE 1: Host leaves staked room before anyone joins -> Mark as abandoned
+    console.log(`🔍 Checking abandonment conditions:`, {
+      isStaked: room.isStaked,
+      isHost,
+      hasGuest: !!room.guest,
+      shouldAbandon: room.isStaked && isHost && !room.guest
+    });
+    
     if (room.isStaked && isHost && !room.guest) {
       console.log(`💰 Host abandoned staked room ${roomCode} before anyone joined - marking for refund`);
       await this.markGameAsAbandoned(roomCode);
