@@ -1,0 +1,47 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Circle -->
+  <circle cx="256" cy="256" r="240" fill="url(#gradient1)" stroke="url(#gradient2)" stroke-width="8"/>
+  
+  <!-- Gradient Definitions -->
+  <defs>
+    <linearGradient id="gradient1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#DA76EC;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#B84DD9;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="gradient2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF6BC9;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#DA76EC;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="gradient3" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#FFFFFF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#FFE6F5;stop-opacity:1" />
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" style="stop-color:#FFE6F5;stop-opacity:0.3" />
+      <stop offset="100%" style="stop-color:#DA76EC;stop-opacity:0" />
+    </radialGradient>
+  </defs>
+  
+  <!-- Glow effect -->
+  <circle cx="256" cy="256" r="220" fill="url(#glow)"/>
+  
+  <!-- Left Paddle -->
+  <rect x="100" y="176" width="24" height="160" rx="12" fill="url(#gradient3)"/>
+  
+  <!-- Right Paddle -->
+  <rect x="388" y="176" width="24" height="160" rx="12" fill="url(#gradient3)"/>
+  
+  <!-- Ball -->
+  <circle cx="256" cy="256" r="20" fill="#FF6BC9"/>
+  <circle cx="256" cy="256" r="28" fill="#FF6BC9" opacity="0.2"/>
+  
+  <!-- Center Line (Dashed) -->
+  <line x1="256" y1="100" x2="256" y2="412" stroke="#FFFFFF" stroke-width="6" stroke-dasharray="20,20" opacity="0.4"/>
+  
+  <!-- Lightning Bolt (Crypto/Staking Symbol) -->
+  <path d="M270 120 L240 200 L265 200 L235 280 L285 200 L260 200 Z" fill="#FFD700"/>
+  
+  <!-- Text PONG-IT -->
+  <text x="256" y="440" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="#FFFFFF" text-anchor="middle">PONG-IT</text>
+</svg>
+
