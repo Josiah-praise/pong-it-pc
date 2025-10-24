@@ -181,6 +181,14 @@ const MyWins: FC = () => {
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
   };
 
+  const formatPrizeAmount = (stakeAmount: string): string => {
+    const prizeValue = parseFloat(stakeAmount) * 2;
+    if (isNaN(prizeValue)) return '0';
+    
+    // Format to 4 significant figures
+    return parseFloat(prizeValue.toPrecision(4)).toString();
+  };
+
   if (!isConnected) {
     return (
       <div className="my-wins-container">
@@ -321,6 +329,13 @@ const MyWins: FC = () => {
                     <div className="detail-row">
                       <span className="detail-label">Prize Amount:</span>
                       <span className="detail-value prize-amount">
+                        {formatPrizeAmount(game.stakeAmount)} PC
+                      </span>
+                    </div>
+
+                    <div className="detail-row">
+                      <span className="detail-label">Stake Amount:</span>
+                      <span className="detail-value">
                         {game.stakeAmount} PC
                       </span>
                     </div>
