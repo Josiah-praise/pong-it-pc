@@ -466,17 +466,29 @@ app.post('/games', async (req, res) => {
 // Get user's wins (for claiming interface)
 app.get('/games/my-wins', async (req, res) => {
   try {
-    const { address, limit = 20, offset = 0 } = req.query;
+    const { address, limit = 20, offset = 0, originAddress } = req.query;
 
     if (!address) {
       return res.status(400).json({ error: 'Address is required' });
     }
 
+    // Build query - search for games matching EITHER the UEA or origin address
+    const addressesToSearch = [address.toLowerCase()];
+    if (originAddress && originAddress !== address) {
+      addressesToSearch.push(originAddress.toLowerCase());
+    }
+
     const query = {
-      winnerAddress: address.toLowerCase(),
+      winnerAddress: { $in: addressesToSearch },
       isStaked: true,
       status: 'finished'
     };
+
+    console.log('🔍 Searching for wins:', {
+      primaryAddress: address.toLowerCase(),
+      originAddress: originAddress?.toLowerCase(),
+      searchingAddresses: addressesToSearch
+    });
 
     // Fetch games with pagination
     const games = await Game.find(query)
@@ -487,6 +499,11 @@ app.get('/games/my-wins', async (req, res) => {
 
     // Get total count for pagination
     const totalGames = await Game.countDocuments(query);
+
+    console.log('✅ Found wins:', {
+      count: games.length,
+      total: totalGames
+    });
 
     res.status(200).json({
       games,
@@ -673,18 +690,30 @@ app.get('/games/:roomCode', async (req, res) => {
 app.get('/games/abandoned-stakes/:address', async (req, res) => {
   try {
     const { address } = req.params;
-    const { limit = 20, offset = 0 } = req.query;
+    const { limit = 20, offset = 0, originAddress } = req.query;
 
     if (!address) {
       return res.status(400).json({ error: 'Address is required' });
     }
 
+    // Build query - search for games matching EITHER the UEA or origin address
+    const addressesToSearch = [address.toLowerCase()];
+    if (originAddress && originAddress !== address) {
+      addressesToSearch.push(originAddress.toLowerCase());
+    }
+
     const query = {
-      player1Address: address.toLowerCase(),
+      player1Address: { $in: addressesToSearch },
       status: 'abandoned',
       canRefund: true,
       refundClaimed: false
     };
+
+    console.log('🔍 Searching for abandoned stakes:', {
+      primaryAddress: address.toLowerCase(),
+      originAddress: originAddress?.toLowerCase(),
+      searchingAddresses: addressesToSearch
+    });
 
     // Fetch games with pagination
     const games = await Game.find(query)
@@ -695,6 +724,11 @@ app.get('/games/abandoned-stakes/:address', async (req, res) => {
 
     // Get total count for pagination
     const totalGames = await Game.countDocuments(query);
+
+    console.log('✅ Found abandoned stakes:', {
+      count: games.length,
+      total: totalGames
+    });
 
     res.status(200).json({
       games,

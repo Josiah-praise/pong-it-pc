@@ -25,10 +25,14 @@ interface AbandonedStake {
 
 const UnclaimedStakes: FC = () => {
   const navigate = useNavigate();
-  const { connectionStatus } = usePushWalletContext();
+  const { connectionStatus, universalAccount } = usePushWalletContext();
   const { pushChainClient } = usePushChainClient();
   const isConnected = connectionStatus === 'connected';
   const address = pushChainClient?.universal?.account?.toLowerCase() || null;
+  
+  // Get origin address from CAIP format (eip155:chainId:address)
+  const caipAddress = universalAccount?.caipAddress;
+  const originAddress = caipAddress?.split(':')[2]?.toLowerCase() || null;
 
   const [stakes, setStakes] = useState<AbandonedStake[]>([]);
   const [loading, setLoading] = useState(false);
@@ -49,8 +53,14 @@ const UnclaimedStakes: FC = () => {
 
     setLoading(true);
     try {
+      // Build query params - send both UEA and origin address for comprehensive search
+      const params = new URLSearchParams({ limit: '50' });
+      if (originAddress && originAddress !== address) {
+        params.append('originAddress', originAddress);
+      }
+      
       const response = await fetch(
-        `${BACKEND_URL}/games/abandoned-stakes/${address}?limit=50`
+        `${BACKEND_URL}/games/abandoned-stakes/${address}?${params.toString()}`
       );
 
       if (!response.ok) {
@@ -64,7 +74,7 @@ const UnclaimedStakes: FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [address]);
+  }, [address, originAddress]);
 
   useEffect(() => {
     if (isConnected && address) {

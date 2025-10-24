@@ -49,13 +49,17 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet,
   const socketRef = useRef<Socket | null>(null);
 
   // Push Chain wallet context
-  const { connectionStatus } = usePushWalletContext();
+  const { connectionStatus, universalAccount } = usePushWalletContext();
   const { pushChainClient } = usePushChainClient();
   const isConnected = connectionStatus === 'connected';
   const isWalletReady = isConnected && !!pushChainClient?.universal?.account;
   
   // Get the user's account address from Push Chain client
   const address = pushChainClient?.universal?.account?.toLowerCase() || null;
+  
+  // Get origin address from CAIP format (eip155:chainId:address)
+  const caipAddress = universalAccount?.caipAddress;
+  const originAddress = caipAddress?.split(':')[2]?.toLowerCase() || null;
 
   // Dialog hook
   const { dialogState, showAlert, handleConfirm, handleCancel } = useDialog();
@@ -79,8 +83,14 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet,
       }
 
       try {
+        // Build query params - send both UEA and origin address for comprehensive search
+        const params = new URLSearchParams({ limit: '100' });
+        if (originAddress && originAddress !== address) {
+          params.append('originAddress', originAddress);
+        }
+        
         const response = await fetch(
-          `${BACKEND_URL}/games/abandoned-stakes/${address}?limit=100`
+          `${BACKEND_URL}/games/abandoned-stakes/${address}?${params.toString()}`
         );
 
         if (!response.ok) {
@@ -99,7 +109,7 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet,
     // Refresh count every 30 seconds
     const interval = setInterval(fetchUnclaimedStakesCount, 30000);
     return () => clearInterval(interval);
-  }, [address, isConnected]);
+  }, [address, isConnected, originAddress]);
 
   useEffect(() => {
     const fetchRankings = async () => {

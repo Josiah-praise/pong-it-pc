@@ -34,12 +34,16 @@ const MyWins: FC = () => {
   const navigate = useNavigate();
   
   // Push Chain wallet context
-  const { connectionStatus } = usePushWalletContext();
+  const { connectionStatus, universalAccount } = usePushWalletContext();
   const { pushChainClient } = usePushChainClient();
   const isConnected = connectionStatus === 'connected';
   
   // Get the user's account address from Push Chain client
-  const originAddress = pushChainClient?.universal?.account?.toLowerCase() || null;
+  const address = pushChainClient?.universal?.account?.toLowerCase() || null;
+  
+  // Get origin address from CAIP format (eip155:chainId:address)
+  const caipAddress = universalAccount?.caipAddress;
+  const originAddress = caipAddress?.split(':')[2]?.toLowerCase() || null;
   
   // CRITICAL: Get the Universal Executor Account (UEA) address
   // The contract sees UEA as msg.sender, not the origin address
@@ -87,6 +91,11 @@ const MyWins: FC = () => {
         limit: pagination.limit.toString(),
         offset: pagination.offset.toString()
       });
+      
+      // Add origin address for comprehensive search (in case games were saved with origin address)
+      if (originAddress && originAddress !== executorAddress) {
+        params.append('originAddress', originAddress);
+      }
 
       const response = await fetch(`${BACKEND_URL}/games/my-wins?${params}`);
 
