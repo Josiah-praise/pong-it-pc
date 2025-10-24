@@ -135,28 +135,73 @@ class MultiplayerHandler {
     }
   }
 
-  handleCreateRoom(socket, player, providedRoomCode) {
+  async handleCreateRoom(socket, player, providedRoomCode) {
+    console.log(`\n🏗️  ========== CREATE ROOM ==========`);
+    console.log(`👤 Player: ${player.name}`);
+    console.log(`🔌 Socket: ${socket.id}`);
+    console.log(`🎫 Provided Room Code: ${providedRoomCode || 'NONE (will generate)'}`);
+    
     const existingRoom = this.roomManager.getRoomByPlayer(socket.id);
     if (existingRoom) {
+      console.log(`❌ Player already in room ${existingRoom.code}`);
       socket.emit('error', { message: 'Already in a room' });
       return;
     }
 
     // Use provided room code for staked matches, or generate new one
     const roomCode = providedRoomCode || this.roomManager.createRoom(player, socket.id);
+    console.log(`🎫 Final Room Code: ${roomCode}`);
 
     // If room code was provided, create room with that specific code
     if (providedRoomCode) {
+      console.log(`🔍 Provided room code detected - checking if this is a staked match...`);
       this.roomManager.createRoomWithCode(roomCode, player, socket.id);
+      
+      // Check if this is a staked game in the database
+      try {
+        const game = await Game.findOne({ roomCode: providedRoomCode });
+        console.log(`📊 Database lookup result:`, game ? {
+          roomCode: game.roomCode,
+          isStaked: game.isStaked,
+          hasPlayer1Tx: !!game.player1TxHash,
+          status: game.status
+        } : 'NOT FOUND');
+        
+        if (game && game.isStaked && game.player1TxHash) {
+          const room = this.roomManager.getRoom(roomCode);
+          if (room) {
+            room.isStaked = true;
+            room.hostStaked = true;
+            console.log(`✅ Room ${roomCode} marked as STAKED in memory (found in database)`);
+            console.log(`💰 Stake amount: ${game.stakeAmount} PC`);
+            console.log(`📝 Player1 TxHash: ${game.player1TxHash}`);
+          } else {
+            console.log(`⚠️ Room ${roomCode} not found in memory after creation!`);
+          }
+        } else {
+          console.log(`ℹ️  Room ${roomCode} is NOT a staked match`);
+        }
+      } catch (error) {
+        console.error(`❌ Error checking if room ${roomCode} is staked:`, error);
+      }
+    } else {
+      console.log(`ℹ️  No room code provided - this is a regular match`);
     }
 
     socket.join(roomCode);
 
-    console.log(`Room created: ${roomCode} by ${player.name} (${socket.id})`);
+    const finalRoom = this.roomManager.getRoom(roomCode);
+    console.log(`✅ Room created successfully:`, {
+      code: roomCode,
+      host: player.name,
+      isStaked: finalRoom?.isStaked || false,
+      hostStaked: finalRoom?.hostStaked || false
+    });
+    console.log(`🏗️  ========== CREATE ROOM END ==========\n`);
 
     socket.emit('roomCreated', {
       roomCode,
-      room: this.roomManager.getRoom(roomCode)
+      room: finalRoom
     });
   }
 
@@ -580,65 +625,96 @@ class MultiplayerHandler {
    * (e.g., clicking "Back" or "Forfeit" button before anyone joins)
    */
   async handleLeaveAbandonedRoom(socket, roomCode) {
-    console.log(`🔵 handleLeaveAbandonedRoom called - Socket: ${socket.id}, Room: ${roomCode}`);
+    console.log(`\n🚪 ========== LEAVE ABANDONED ROOM ==========`);
+    console.log(`🔌 Socket: ${socket.id}`);
+    console.log(`🏠 Room Code: ${roomCode}`);
+    console.log(`👤 Username: ${socket.handshake.query.username}`);
+    console.log(`⏰ Timestamp: ${new Date().toISOString()}`);
     
     const room = this.roomManager.getRoom(roomCode);
     
     // CRITICAL FIX: If room not in memory (backend restart), check database directly
     if (!room) {
-      console.log(`⚠️ No room in memory for code ${roomCode} - checking database directly`);
+      console.log(`⚠️ ========== ROOM NOT IN MEMORY ==========`);
+      console.log(`🔍 Checking database for room ${roomCode}...`);
       
       try {
         const game = await Game.findOne({ roomCode });
         
         if (!game) {
           console.log(`❌ No game found in database for room ${roomCode}`);
+          console.log(`🚪 ========== LEAVE ABANDONED ROOM END (NO GAME) ==========\n`);
           return;
         }
         
         console.log(`📊 Found game in database:`, {
           roomCode: game.roomCode,
           isStaked: game.isStaked,
-          hasPlayer2: !!game.player2TxHash,
-          status: game.status
+          stakeAmount: game.stakeAmount,
+          hasPlayer1Tx: !!game.player1TxHash,
+          hasPlayer2Tx: !!game.player2TxHash,
+          status: game.status,
+          player1Address: game.player1Address
         });
         
         // Check if this game is eligible for abandonment
-        if (game.isStaked && !game.player2TxHash && game.status === 'waiting') {
-          console.log(`💰 Game ${roomCode} is eligible for abandonment - marking for refund`);
+        const isEligible = game.isStaked && !game.player2TxHash && game.status === 'waiting';
+        console.log(`🔍 Eligibility check:`, {
+          isStaked: game.isStaked,
+          noPlayer2: !game.player2TxHash,
+          isWaiting: game.status === 'waiting',
+          ELIGIBLE: isEligible
+        });
+        
+        if (isEligible) {
+          console.log(`✅ Game ${roomCode} IS ELIGIBLE for abandonment - marking for refund`);
           await this.markGameAsAbandoned(roomCode);
           
           socket.emit('abandonmentProcessed', {
             message: 'Room abandoned. You can reclaim your stake from "Unclaimed Stakes".'
           });
+          console.log(`🚪 ========== LEAVE ABANDONED ROOM END (ABANDONED) ==========\n`);
           return;
         } else {
-          console.log(`⚠️ Game ${roomCode} not eligible for abandonment`, {
-            isStaked: game.isStaked,
-            hasPlayer2Tx: !!game.player2TxHash,
-            status: game.status
-          });
+          console.log(`❌ Game ${roomCode} NOT ELIGIBLE for abandonment`);
+          console.log(`🚪 ========== LEAVE ABANDONED ROOM END (NOT ELIGIBLE) ==========\n`);
           return;
         }
       } catch (error) {
         console.error(`❌ Error checking database for abandoned game:`, error);
+        console.log(`🚪 ========== LEAVE ABANDONED ROOM END (ERROR) ==========\n`);
         return;
       }
     }
 
     // Room exists in memory - use normal flow
+    console.log(`✅ ========== ROOM FOUND IN MEMORY ==========`);
     const isHost = room.host && room.host.socketId === socket.id;
 
-    console.log(`🚪 handleLeaveAbandonedRoom - Room: ${roomCode}`, {
+    console.log(`📋 Room details:`, {
+      code: roomCode,
       isStaked: room.isStaked,
+      hostStaked: room.hostStaked,
       isHost,
       hasGuest: !!room.guest,
-      roomStatus: room.status
+      guestStaked: room.guestStaked,
+      roomStatus: room.status,
+      hostName: room.host?.name,
+      guestName: room.guest?.name
     });
 
     // Validate this is actually an abandonment scenario
-    if (room.isStaked && isHost && !room.guest) {
-      console.log(`💰 Host intentionally leaving staked room ${roomCode} before anyone joined - marking for refund`);
+    const isValidAbandonment = room.isStaked && isHost && !room.guest;
+    console.log(`🔍 Abandonment validation:`, {
+      isStaked: room.isStaked,
+      isHost,
+      noGuest: !room.guest,
+      VALID: isValidAbandonment
+    });
+    
+    if (isValidAbandonment) {
+      console.log(`✅ VALID abandonment - Host leaving staked room ${roomCode} before anyone joined`);
+      console.log(`💰 Marking for refund...`);
       await this.markGameAsAbandoned(roomCode);
       this.endGame(roomCode);
       this.roomManager.removePlayerFromRoom(socket.id);
@@ -647,10 +723,14 @@ class MultiplayerHandler {
       socket.emit('abandonmentProcessed', {
         message: 'Room abandoned. You can reclaim your stake from "Unclaimed Stakes".'
       });
+      console.log(`🚪 ========== LEAVE ABANDONED ROOM END (SUCCESS) ==========\n`);
     } else {
       // Invalid abandonment attempt - treat as normal forfeit
-      console.log(`⚠️ Invalid abandonment attempt for room ${roomCode} - guest exists or not staked`);
+      console.log(`❌ INVALID abandonment attempt for room ${roomCode}`);
+      console.log(`⚠️ Reason: ${!room.isStaked ? 'Not staked' : !isHost ? 'Not host' : 'Guest exists'}`);
+      console.log(`🔄 Converting to normal forfeit...`);
       this.handleForfeitGame(socket);
+      console.log(`🚪 ========== LEAVE ABANDONED ROOM END (FORFEIT) ==========\n`);
     }
   }
 
@@ -921,33 +1001,46 @@ class MultiplayerHandler {
    */
   async markGameAsAbandoned(roomCode) {
     try {
-      console.log(`🟡 Starting markGameAsAbandoned for room: ${roomCode}`);
+      console.log(`\n💰 ========== MARK GAME AS ABANDONED ==========`);
+      console.log(`🏠 Room Code: ${roomCode}`);
+      console.log(`⏰ Timestamp: ${new Date().toISOString()}`);
       
       const game = await Game.findOne({ roomCode });
       
       if (!game) {
-        console.error(`❌ Game not found for abandoned room: ${roomCode}`);
+        console.error(`❌ Game not found in database for room: ${roomCode}`);
+        console.log(`💰 ========== MARK GAME AS ABANDONED END (NO GAME) ==========\n`);
         return;
       }
 
-      console.log(`🟡 Game found:`, {
+      console.log(`✅ Game found in database:`, {
         roomCode: game.roomCode,
         isStaked: game.isStaked,
+        stakeAmount: game.stakeAmount,
         player1Address: game.player1Address,
-        player2TxHash: game.player2TxHash,
-        status: game.status
+        player1TxHash: game.player1TxHash,
+        hasPlayer2Tx: !!game.player2TxHash,
+        currentStatus: game.status,
+        canRefund: game.canRefund
       });
 
       // Only mark as abandoned if it's a staked game and no player 2
       if (!game.isStaked || game.player2TxHash) {
-        console.log(`⚠️ Game ${roomCode} is not eligible for abandonment`, {
+        console.log(`❌ Game ${roomCode} is NOT eligible for abandonment:`, {
           isStaked: game.isStaked,
-          hasPlayer2Tx: !!game.player2TxHash
+          hasPlayer2Tx: !!game.player2TxHash,
+          reason: !game.isStaked ? 'Not a staked game' : 'Player 2 already staked'
         });
+        console.log(`💰 ========== MARK GAME AS ABANDONED END (NOT ELIGIBLE) ==========\n`);
         return;
       }
 
-      console.log(`🟡 Generating refund signature...`);
+      console.log(`✅ Game IS eligible for abandonment`);
+      console.log(`📝 Generating refund signature...`);
+      console.log(`📍 Refund params:`, {
+        roomCode,
+        player1Address: game.player1Address
+      });
       
       // Generate refund signature
       const signature = await signatureService.signAbandonedRefund(
@@ -955,17 +1048,28 @@ class MultiplayerHandler {
         game.player1Address
       );
 
-      console.log(`🟡 Signature generated, updating game record...`);
+      console.log(`✅ Signature generated successfully`);
+      console.log(`📝 Signature: ${signature.substring(0, 20)}...${signature.substring(signature.length - 10)}`);
+      console.log(`💾 Updating game record in database...`);
 
       // Update game record
+      const previousStatus = game.status;
       game.status = 'abandoned';
       game.canRefund = true;
       game.refundSignature = signature;
       await game.save();
 
-      console.log(`✅ Game ${roomCode} marked as abandoned - refund signature generated`);
+      console.log(`✅ Game ${roomCode} successfully marked as abandoned`);
+      console.log(`📊 Status change: ${previousStatus} → abandoned`);
+      console.log(`✅ canRefund: false → true`);
+      console.log(`✅ refundSignature: generated`);
+      console.log(`💰 ========== MARK GAME AS ABANDONED END (SUCCESS) ==========\n`);
     } catch (error) {
-      console.error(`❌ Error marking game ${roomCode} as abandoned:`, error);
+      console.error(`❌ ERROR marking game ${roomCode} as abandoned:`);
+      console.error(`❌ Error type: ${error.name}`);
+      console.error(`❌ Error message: ${error.message}`);
+      console.error(`❌ Stack trace:`, error.stack);
+      console.log(`💰 ========== MARK GAME AS ABANDONED END (ERROR) ==========\n`);
     }
   }
 

@@ -366,6 +366,9 @@ app.patch('/players/:name/rating', async (req, res) => {
 // Create or save game result
 app.post('/games', async (req, res) => {
   try {
+    console.log(`\n💾 ========== POST /games ==========`);
+    console.log(`⏰ Timestamp: ${new Date().toISOString()}`);
+    
     const {
       roomCode,
       player1,
@@ -381,11 +384,26 @@ app.post('/games', async (req, res) => {
       status
     } = req.body;
 
+    console.log(`📊 Request body:`, {
+      roomCode,
+      player1Name: player1?.name,
+      player2Name: player2?.name,
+      isStaked,
+      stakeAmount,
+      player1Address,
+      hasPlayer1Tx: !!player1TxHash,
+      hasPlayer2Tx: !!player2TxHash,
+      status
+    });
+
     if (!roomCode) {
+      console.log(`❌ Missing room code`);
+      console.log(`💾 ========== POST /games END (ERROR) ==========\n`);
       return res.status(400).json({ error: 'Room code is required' });
     }
 
     // Check if game already exists
+    console.log(`🔍 Checking if game ${roomCode} already exists...`);
     let game = await Game.findOne({ roomCode });
 
     // Convert score array to object if needed
@@ -395,6 +413,7 @@ app.post('/games', async (req, res) => {
     }
 
     if (game) {
+      console.log(`✅ Game exists - updating...`);
       // Update existing game
       if (player2) game.player2 = player2;
       if (winner) game.winner = winner;
@@ -406,7 +425,14 @@ app.post('/games', async (req, res) => {
         game.endedAt = new Date();
         game.winnerAddress = winner === 'player1' ? game.player1Address : game.player2Address;
       }
+      console.log(`📝 Updated fields:`, {
+        hasPlayer2: !!player2,
+        hasWinner: !!winner,
+        hasScore: !!scoreObject,
+        status: game.status
+      });
     } else {
+      console.log(`📝 Game doesn't exist - creating new game...`);
       // Create new game
       game = new Game({
         roomCode,
@@ -421,6 +447,12 @@ app.post('/games', async (req, res) => {
         player1TxHash,
         player2TxHash,
         status: status || (player2 ? 'playing' : 'waiting')
+      });
+      console.log(`✅ New game created:`, {
+        roomCode,
+        isStaked: game.isStaked,
+        stakeAmount: game.stakeAmount,
+        status: game.status
       });
     }
 
@@ -444,21 +476,36 @@ app.post('/games', async (req, res) => {
       }
     }
 
+    console.log(`💾 Saving game to database...`);
     await game.save();
+    console.log(`✅ Game saved successfully`);
     
     // If this is a staked game with player1TxHash, mark the room as staked
     if (game.isStaked && game.player1TxHash) {
+      console.log(`💰 This is a staked game - attempting to mark room in memory...`);
       const room = multiplayerHandler.roomManager.getRoom(roomCode);
       if (room) {
         room.isStaked = true;
         room.hostStaked = true;
-        console.log(`✅ Room ${roomCode} marked as staked after Player 1 staked`);
+        console.log(`✅ Room ${roomCode} marked as STAKED in memory`);
+        console.log(`📋 Room state:`, {
+          code: roomCode,
+          isStaked: room.isStaked,
+          hostStaked: room.hostStaked,
+          hasGuest: !!room.guest
+        });
+      } else {
+        console.log(`⚠️ Room ${roomCode} NOT FOUND in memory (room will be marked as staked when created)`);
       }
     }
     
+    console.log(`💾 ========== POST /games END (SUCCESS) ==========\n`);
     res.status(200).json(game);
   } catch (error) {
-    console.error('Error saving game:', error);
+    console.error(`❌ Error saving game:`, error);
+    console.error(`❌ Error type: ${error.name}`);
+    console.error(`❌ Error message: ${error.message}`);
+    console.log(`💾 ========== POST /games END (ERROR) ==========\n`);
     res.status(500).json({ error: 'Failed to save game' });
   }
 });
