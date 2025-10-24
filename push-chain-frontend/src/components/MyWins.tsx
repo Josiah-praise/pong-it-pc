@@ -71,12 +71,9 @@ const MyWins: FC = () => {
     // CRITICAL: Must use executorAddress (UEA) for filtering wins
     // because the contract stores the UEA as the winner, not the origin address
     if (!executorAddress) {
-      console.log('⏳ Waiting for executor address (UEA) to be resolved...');
       return;
     }
 
-    console.log('🔍 Fetching wins for UEA:', executorAddress);
-    console.log('📝 Origin address:', originAddress);
 
     try {
       setLoading(true);
@@ -95,11 +92,9 @@ const MyWins: FC = () => {
       }
 
       const data = await response.json();
-      console.log('✅ Fetched wins:', data);
       setWins(data.games);
       setPagination(data.pagination);
     } catch (err) {
-      console.error('❌ Error fetching wins:', err);
       setError('Failed to load your wins. Please try again.');
     } finally {
       setLoading(false);
@@ -124,7 +119,6 @@ const MyWins: FC = () => {
   // Handle claim success
   useEffect(() => {
     if (isClaimSuccess && claimTxHash && claimingGameId) {
-      console.log('✅ Prize claimed successfully!');
 
       // Mark game as claimed in database
       fetch(`${BACKEND_URL}/games/${claimingGameId}/claimed`, {
@@ -134,12 +128,10 @@ const MyWins: FC = () => {
       })
         .then(res => res.json())
         .then(data => {
-          console.log('Game marked as claimed:', data);
           // Refresh wins list
           fetchWins();
         })
         .catch(err => {
-          console.error('Failed to mark game as claimed:', err);
         });
 
       setClaimingGameId(null);
@@ -149,7 +141,6 @@ const MyWins: FC = () => {
   // Handle claim error
   useEffect(() => {
     if (claimError) {
-      console.error('Claim error:', claimError);
       const parsedError = parseTransactionError(claimError);
       setClaimErrorMessage(parsedError.message);
       setClaimingGameId(null);
@@ -163,14 +154,12 @@ const MyWins: FC = () => {
       return;
     }
 
-    console.log('🎁 Claiming prize for room:', game.roomCode);
     setClaimingGameId(game._id);
     setClaimErrorMessage(null);
 
     try {
       await claimPrize(game.roomCode, game.winnerSignature);
     } catch (error) {
-      console.error('Error initiating claim:', error);
       setClaimingGameId(null);
     }
   };

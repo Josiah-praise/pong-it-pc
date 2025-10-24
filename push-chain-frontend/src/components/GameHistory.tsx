@@ -82,7 +82,6 @@ const GameHistory: FC<GameHistoryProps> = ({ savedUsername }) => {
       setStats(data.stats);
       setPagination(data.pagination);
     } catch (err) {
-      console.error('Error fetching game history:', err);
       setError('Failed to load game history. Please try again.');
     } finally {
       setLoading(false);

@@ -45,7 +45,6 @@ const GameOver: FC = () => {
     // Get username from result (passed from MultiplayerGame)
     const username = result.playerName;
     if (!username) {
-      console.error('❌ No username in game result');
       navigate('/');
       return;
     }
@@ -61,19 +60,14 @@ const GameOver: FC = () => {
 
     // Wait for connection before joining game-over room
     socket.on('connect', () => {
-      console.log(`✅ Socket connected: ${socket.id}`);
-      console.log(`🎮 Joining game-over room as ${username}`);
       socket.emit('joinGameOverRoom', { username });
     });
 
     socket.on('rematchRequested', (data: any) => {
-      console.log('📨 ✅ RECEIVED rematch request from:', data?.from || 'unknown');
-      console.log('📨 Full data:', data);
       setRematchRequested(true);
     });
 
     socket.on('error', (error: any) => {
-      console.error('❌ Socket error:', error);
       if (error.message && error.message.includes('rematch')) {
         showAlert(error.message, 'Rematch Error');
       }
@@ -106,13 +100,10 @@ const GameOver: FC = () => {
   }
 
   const handleRematch = () => {
-    console.log('🔄 Sending rematch request...');
     if (socketRef.current) {
-      console.log(`📤 Emitting requestRematch via socket ${socketRef.current.id}`);
       socketRef.current.emit('requestRematch');
       setWaitingForResponse(true);
     } else {
-      console.error('❌ No socket ref available for rematch request');
     }
   };
 

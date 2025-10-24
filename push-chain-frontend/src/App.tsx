@@ -54,7 +54,6 @@ function App() {
       setIsAuthenticating(true)
       
       try {
-        console.log('🔐 Attempting authentication for wallet:', walletAddress)
 
         // Try to authenticate - wallet is the ONLY source of truth
         const result = await authenticatePlayer(walletAddress)
@@ -62,16 +61,13 @@ function App() {
         setAuthenticatedPlayer(result.player)
         setUsername(result.player.name)
 
-        console.log(result.isNewPlayer ? '✅ New player created' : '✅ Existing player authenticated:', result.player.name)
         
       } catch (error: any) {
         if (error.message === 'USERNAME_REQUIRED') {
-          console.log('⚠️ New wallet detected - username required')
           // Username will be prompted in Welcome component
           setAuthenticatedPlayer(null)
           setUsername(null)
         } else {
-          console.error('❌ Authentication failed:', error)
           setAuthenticatedPlayer(null)
           setUsername(null)
         }
@@ -87,7 +83,6 @@ function App() {
     const addressToUse = walletAddr || walletAddress
     
     if (!addressToUse) {
-      console.error('❌ No wallet address available')
       throw new Error('No wallet connected')
     }
 
@@ -106,10 +101,8 @@ function App() {
         }
       }))
 
-      console.log('✅ Username set and player authenticated:', result.player.name)
       return result.player
     } catch (error: any) {
-      console.error('❌ Failed to set username:', error)
       
       // Re-throw to let calling component handle
       if (error.message === 'USERNAME_TAKEN') {

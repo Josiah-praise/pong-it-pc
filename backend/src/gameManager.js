@@ -148,7 +148,7 @@ class GameManager {
 
       if (ballNearPaddleX) {
         if (Math.abs(game.ballPos.y - paddleY) <= paddleHitboxSize) {
-          game.ballVelocity.x *= -1.05;
+          game.ballVelocity.x *= -1.08;
           game.hits = (game.hits || 0) + 1;
 
           const hitPosition = (game.ballPos.y - paddleY) / paddleHitboxSize;
@@ -167,7 +167,7 @@ class GameManager {
 
   resetBall(game) {
     game.ballPos = { x: 0, y: 0 };
-    const speed = 2.2;
+    const speed = 2.8;
     const angle = (Math.random() - 0.5) * Math.PI / 3;
     game.ballVelocity = {
       x: speed * Math.cos(angle) * (Math.random() < 0.5 ? 1 : -1),

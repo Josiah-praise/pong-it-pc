@@ -60,7 +60,6 @@ const UnclaimedStakes: FC = () => {
       const data = await response.json();
       setStakes(data.games);
     } catch (error) {
-      console.error('Error fetching abandoned stakes:', error);
     } finally {
       setLoading(false);
     }
@@ -87,7 +86,6 @@ const UnclaimedStakes: FC = () => {
           fetchAbandonedStakes();
           setClaimingGameId(null);
         } catch (error) {
-          console.error('Error updating refund status:', error);
         }
       };
 
@@ -98,7 +96,6 @@ const UnclaimedStakes: FC = () => {
   // Handle claim error
   useEffect(() => {
     if (claimError) {
-      console.error('Claim refund error:', claimError);
       const parsedError = parseTransactionError(claimError);
       setClaimErrorMessage(parsedError.message);
       setClaimingGameId(null);
@@ -112,7 +109,6 @@ const UnclaimedStakes: FC = () => {
     try {
       await claimRefundForAbandoned(stake.roomCode, stake.refundSignature);
     } catch (error) {
-      console.error('Error claiming refund:', error);
     }
   };
 

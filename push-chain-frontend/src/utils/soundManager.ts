@@ -49,10 +49,8 @@ class SoundManager {
   }
 
   init(): Promise<void> {
-    console.log('Initializing SoundManager')
     
     if (this.initialized) {
-      console.log('Already initialized')
       return Promise.resolve()
     }
     
@@ -60,22 +58,17 @@ class SoundManager {
       try {
         // Create audio context if it doesn't exist
         if (!this.audioContext) {
-          console.log('Creating new AudioContext')
           const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext
           this.audioContext = new AudioContextClass()
         }
         
         if (this.audioContext.state === 'suspended') {
-          console.log('AudioContext suspended, attempting to resume')
           this.audioContext.resume().catch(e => {
-            console.warn('Could not resume audio context:', e)
           })
         }
         
-        console.log('Audio context created:', this.audioContext.state)
         
         // Load audio files silently without playing them
-        console.log('Loading audio files')
         
         // This prevents the "play() request was interrupted" error
         const silentBuffer = this.audioContext.createBuffer(1, 1, 22050)
@@ -85,10 +78,8 @@ class SoundManager {
         silentSource.start()
         
         this.initialized = true
-        console.log('Sound Manager initialized successfully')
         resolve()
       } catch (e) {
-        console.error('Failed to initialize audio context:', e)
         this.initialized = false // Mark as not initialized so we can try again
         resolve() // Resolve anyway to avoid blocking
       }
@@ -96,27 +87,21 @@ class SoundManager {
   }
 
   ensureAudioContext(): AudioContext | null {
-    console.log('Ensuring audio context')
     
     if (!this.audioContext) {
       try {
-        console.log('Creating new AudioContext')
         const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext
         this.audioContext = new AudioContextClass()
       } catch (e) {
-        console.error('Failed to create audio context:', e)
         return null
       }
     }
     
     if (this.audioContext.state === 'suspended') {
-      console.log('AudioContext suspended, attempting to resume')
       this.audioContext.resume().catch(e => {
-        console.error('Failed to resume audio context:', e)
       })
     }
     
-    console.log('Audio context state:', this.audioContext.state)
     return this.audioContext
   }
 
@@ -131,7 +116,6 @@ class SoundManager {
       
       await playFunction()
     } catch (error) {
-      console.warn(`Sound playback failed: ${fallbackMessage}`, error)
     }
   }
 
@@ -140,9 +124,7 @@ class SoundManager {
   }
 
   startGenomeAudio(genome: string | null = null): Promise<void> | void {
-    console.log('Starting genome audio, initialized:', this.initialized)
     if (!this.initialized) {
-      console.log('Initializing sound manager before playing genome audio')
       return this.init().then(() => {
         this.isGenomeAudioPlaying = true
         return this.createRhythmicSound(genome || this.defaultGenome)
@@ -161,13 +143,10 @@ class SoundManager {
     
     // Only set the timeout if shouldAutoStop is true
     if (shouldAutoStop) {
-      console.log(`Setting maximum playback duration: ${durationMs}ms`)
       this.maxDurationTimeout = setTimeout(() => {
-        console.log(`Maximum playback duration (${durationMs}ms) reached, stopping sounds`)
         this.stopAll()
       }, durationMs)
     } else {
-      console.log('Continuous playback enabled - no automatic stop')
     }
   }
 
@@ -180,50 +159,37 @@ class SoundManager {
     try {
       this.stopAll()
       
-      console.log('AudioContext before ensuring:', this.audioContext ? this.audioContext.state : 'none')
       if (!this.ensureAudioContext()) {
-        console.error('Failed to ensure audio context')
         return
       }
-      console.log('AudioContext after ensuring:', this.audioContext!.state)
       
       this.isGenomeAudioPlaying = true
       
-      console.log('Creating rhythmic sound with genome:', genome)
       
       const baseFreq = 80 + (Math.abs(this.hashCode(genome)) % 80)
-      console.log('Base frequency:', baseFreq)
       
       const tempoFactor = 0.3 + (Math.abs(this.hashCode(genome.substring(0, 10))) % 0.2)
       const beatInterval = 300 * tempoFactor
-      console.log('Beat interval:', beatInterval)
       
       const mainSequence = this.generateLongerSequence(genome, 16)
       const bassSequence = this.generateLongerSequence(genome.split('').reverse().join(''), 12)
       const accentSequence = this.generateLongerSequence(genome.substring(5) + genome.substring(0, 5), 10)
       
-      console.log('Main sequence length:', mainSequence.length)
-      console.log('Bass sequence length:', bassSequence.length)
-      console.log('Accent sequence length:', accentSequence.length)
       
       const patternLength = this.lcm(
         this.lcm(mainSequence.length, bassSequence.length), 
         accentSequence.length
       )
       
-      console.log('Total pattern length (beats):', patternLength)
-      console.log('Pattern duration (seconds):', (patternLength * beatInterval) / 1000)
       
       this.setMaxPlaybackDuration(30000, false)
       
       let currentBeat = 0
       const mainRhythmInterval = setInterval(() => {
         if (currentBeat % 10 === 0) {
-          console.log('Main rhythm beat:', currentBeat, 'isPlaying:', this.isGenomeAudioPlaying)
         }
         
         if (!this.isGenomeAudioPlaying) {
-          console.log('Stopping main rhythm - isPlaying flag false')
           clearInterval(mainRhythmInterval)
           return
         }
@@ -293,9 +259,7 @@ class SoundManager {
       
       this.createRhythmicPercussion(beatInterval, genome, baseFreq)
       
-      console.log('Faster rhythmic genome audio started successfully')
     } catch (error) {
-      console.error('Error creating rhythmic sound:', error)
     }
   }
 
@@ -339,7 +303,6 @@ class SoundManager {
   playNote(frequency: number, duration: number, volume: number, waveType: WaveType = 'triangle'): { osc: OscillatorNode; gainNode: GainNode } | null {
     try {
       if (!this.audioContext) {
-        console.error('No audio context available for playNote')
         return null
       }
       
@@ -377,7 +340,6 @@ class SoundManager {
       
       return { osc, gainNode }
     } catch (error) {
-      console.error('Error playing note:', error)
       return null
     }
   }
@@ -404,9 +366,7 @@ class SoundManager {
       this.oscillators.push(osc)
       this.gainNodes.push(gainNode)
       
-      console.log('Bass drone created at frequency:', frequency)
     } catch (error) {
-      console.error('Error creating bass drone:', error)
     }
   }
 
@@ -459,9 +419,7 @@ class SoundManager {
         this.gainNodes.push(gainNode, lfoGain)
       }
       
-      console.log('Evolving pad created for continuous playback')
     } catch (error) {
-      console.error('Error creating evolving pad:', error)
     }
   }
 
@@ -480,7 +438,6 @@ class SoundManager {
     }
     
     if (this.oscillators && this.oscillators.length > 0) {
-      console.log('Stopping', this.oscillators.length, 'oscillators')
       
       const currentTime = this.audioContext ? this.audioContext.currentTime : 0
       
@@ -491,7 +448,6 @@ class SoundManager {
               this.gainNodes[i].gain.setValueAtTime(this.gainNodes[i].gain.value, currentTime)
               this.gainNodes[i].gain.linearRampToValueAtTime(0, currentTime + 0.1)
             } catch (e) {
-              console.warn('Error fading out gain node:', e)
             }
           }
           
@@ -504,7 +460,6 @@ class SoundManager {
             }
           }, 250)
         } catch (e) {
-          console.warn('Error stopping oscillator:', e)
         }
       }
       
@@ -513,7 +468,6 @@ class SoundManager {
     }
     
     if (this.rhythmIntervals && this.rhythmIntervals.length > 0) {
-      console.log('Clearing', this.rhythmIntervals.length, 'rhythm intervals')
       
       for (let i = 0; i < this.rhythmIntervals.length; i++) {
         clearInterval(this.rhythmIntervals[i])
@@ -531,7 +485,6 @@ class SoundManager {
       this.gameOverSound.pause()
       this.introSound.pause()
     } catch (e) {
-      console.warn('Error stopping sound effects:', e)
     }
   }
 
@@ -545,9 +498,7 @@ class SoundManager {
         this.hitSound.currentTime = 0
         return this.hitSound.play()
           .catch(err => {
-            console.warn('Hit sound playback error:', err)
             if (err.name === 'NotAllowedError') {
-              console.info('Audio playback requires user interaction first')
             }
             throw err
           })
@@ -562,7 +513,6 @@ class SoundManager {
         this.scoreSound.currentTime = 0
         return this.scoreSound.play()
           .catch(err => {
-            console.warn('Score sound playback error:', err)
             throw err
           })
       },
@@ -576,7 +526,6 @@ class SoundManager {
         this.loadSound.currentTime = 0
         return this.loadSound.play()
           .catch(err => {
-            console.warn('Load sound playback error:', err)
             throw err
           })
       },
@@ -590,7 +539,6 @@ class SoundManager {
         this.gameOverSound.currentTime = 0
         return this.gameOverSound.play()
           .catch(err => {
-            console.warn('Game over sound playback error:', err)
             throw err
           })
       },
@@ -604,7 +552,6 @@ class SoundManager {
         this.introSound.currentTime = 0
         return this.introSound.play()
           .catch(err => {
-            console.warn('Intro sound playback error:', err)
             throw err
           })
       },
@@ -626,11 +573,9 @@ class SoundManager {
 
   initializeOnUserInteraction(): Promise<void> {
     if (this.initialized) {
-      console.log('Sound Manager already initialized')
       return Promise.resolve()
     }
     
-    console.log('Initializing Sound Manager on user interaction')
     return this.init().then(() => {
       if (this.audioContext && this.audioContext.state === 'suspended') {
         this.audioContext.resume()
@@ -643,10 +588,8 @@ class SoundManager {
         source.connect(this.audioContext!.destination)
         source.start(0)
         
-        console.log('Audio context unlocked with buffer source')
         return Promise.resolve()
       } catch (e) {
-        console.warn('Could not unlock audio context with buffer, falling back', e)
         return Promise.resolve()
       }
     })

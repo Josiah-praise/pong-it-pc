@@ -90,7 +90,6 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet,
         const data = await response.json();
         setUnclaimedStakesCount(data.pagination.total);
       } catch (error) {
-        console.error('Error fetching unclaimed stakes count:', error);
         setUnclaimedStakesCount(0);
       }
     };
@@ -104,7 +103,6 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet,
   useEffect(() => {
     const fetchRankings = async () => {
       try {
-        console.log('Fetching rankings...');
         const response = await fetch(`${BACKEND_URL}/api/rankings/top?limit=10`, {
           method: 'GET',
           credentials: 'include',
@@ -118,10 +116,8 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet,
         }
         
         const data = await response.json();
-        console.log('Received rankings:', data);
         setRankings(data);
       } catch (error) {
-        console.error('Failed to fetch rankings:', error);
         setRankings([]);
       }
     };
@@ -136,17 +132,14 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet,
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('Socket connected');
       socket.emit('getActiveGames');
     });
 
     socket.on('rankingsUpdate', (newRankings: Ranking[]) => {
-      console.log('Received rankings update:', newRankings);
       setRankings(newRankings);
     });
 
     socket.on('activeGamesList', (games: ActiveGame[]) => {
-      console.log('Received active games:', games);
       setActiveGames(games);
     });
 
@@ -163,7 +156,6 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet,
   // Add handler to start audio after user interaction
   const handleStartAudio = useCallback(() => {
     if (!audioStarted) {
-      console.log('Starting audio from user interaction');
       setShowTitle(true);
       soundManager.playWithErrorHandling(
         () => soundManager.playIntroSound(),
@@ -193,17 +185,8 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet,
 
   // Handle successful staking transaction
   useEffect(() => {
-    console.log('🔍 Staking useEffect triggered:', {
-      isStakingSuccess,
-      pendingRoomCode,
-      stakingTxHash,
-      selectedStakeAmount,
-      address,
-      savedUsername
-    });
 
     if (isStakingSuccess && pendingRoomCode && stakingTxHash) {
-      console.log('✅ All conditions met! Staking successful! Creating game record...');
 
       // Notify backend about the staked match
       fetch(`${BACKEND_URL}/games`, {
@@ -221,10 +204,8 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet,
       })
         .then(res => res.json())
         .then(data => {
-          console.log('✅ Staked game created in database:', data);
         })
         .catch(err => {
-          console.error('❌ Failed to create game record:', err);
         });
 
       setStakingInProgress(false);
@@ -256,7 +237,6 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet,
   // Handle staking errors
   useEffect(() => {
     if (stakingError) {
-      console.error('Staking error:', stakingError);
       const parsedError = parseTransactionError(stakingError);
       setStakingErrorMessage(parsedError.message);
       setStakingInProgress(false);
@@ -564,7 +544,6 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet,
           modal.remove();
 
           const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-          console.log(`Creating staked match with ${stakeAmount} PC, room code: ${roomCode}`);
 
           setStakingInProgress(true);
           setSelectedStakeAmount(stakeAmount);
@@ -574,7 +553,6 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet,
           try {
             await stakeAsPlayer1(roomCode, stakeAmount);
           } catch (error) {
-            console.error('Error initiating stake:', error);
             setStakingInProgress(false);
             setPendingRoomCode(null);
             setSelectedStakeAmount(null);
@@ -590,7 +568,6 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet,
           if (!stakeAmount) return;
 
           const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-          console.log(`Creating staked match with ${stakeAmount} PC, room code: ${roomCode}`);
 
           setStakingInProgress(true);
           setSelectedStakeAmount(stakeAmount);
@@ -600,7 +577,6 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet,
           try {
             await stakeAsPlayer1(roomCode, stakeAmount);
           } catch (error) {
-            console.error('Error initiating stake:', error);
             setStakingInProgress(false);
             setPendingRoomCode(null);
             setSelectedStakeAmount(null);
@@ -689,7 +665,6 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet,
                           try {
                             await stakeAsPlayer1(pendingRoomCode, selectedStakeAmount);
                           } catch (error) {
-                            console.error('Retry error:', error);
                           }
                         }
                       }}

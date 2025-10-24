@@ -104,7 +104,6 @@ export function useStakeAsPlayer1() {
         args: [roomCode],
       })
 
-      console.log('🎲 Staking as Player 1:', { roomCode, stakeAmount })
 
       // Send universal transaction
       const txResponse = await pushChainClient.universal.sendTransaction({
@@ -113,7 +112,6 @@ export function useStakeAsPlayer1() {
         value: PushChain.utils.helpers.parseUnits(stakeAmount, 18),
       })
 
-      console.log('✅ Transaction sent:', txResponse.hash)
 
       setState(prev => ({ 
         ...prev, 
@@ -125,7 +123,6 @@ export function useStakeAsPlayer1() {
       // Wait for confirmation
       const receipt = await txResponse.wait(1)
       
-      console.log('✅ Transaction confirmed:', receipt)
 
       setState(prev => ({ 
         ...prev, 
@@ -134,7 +131,6 @@ export function useStakeAsPlayer1() {
       }))
 
     } catch (error) {
-      console.error('❌ Error staking as player 1:', error)
       setState(prev => ({ 
         ...prev, 
         error: error as Error, 
@@ -189,7 +185,6 @@ export function useStakeAsPlayer2() {
         args: [roomCode],
       })
 
-      console.log('🎲 Staking as Player 2:', { roomCode, stakeAmount })
 
       const txResponse = await pushChainClient.universal.sendTransaction({
         to: PONG_ESCROW_ADDRESS,
@@ -197,7 +192,6 @@ export function useStakeAsPlayer2() {
         value: PushChain.utils.helpers.parseUnits(stakeAmount, 18),
       })
 
-      console.log('✅ Transaction sent:', txResponse.hash)
 
       setState(prev => ({ 
         ...prev, 
@@ -208,7 +202,6 @@ export function useStakeAsPlayer2() {
 
       const receipt = await txResponse.wait(1)
       
-      console.log('✅ Transaction confirmed:', receipt)
 
       setState(prev => ({ 
         ...prev, 
@@ -217,7 +210,6 @@ export function useStakeAsPlayer2() {
       }))
 
     } catch (error) {
-      console.error('❌ Error staking as player 2:', error)
       setState(prev => ({ 
         ...prev, 
         error: error as Error, 
@@ -272,7 +264,6 @@ export function useClaimPrize() {
         args: [roomCode, signature],
       })
 
-      console.log('🏆 Claiming prize:', { roomCode })
 
       const txResponse = await pushChainClient.universal.sendTransaction({
         to: PONG_ESCROW_ADDRESS,
@@ -280,7 +271,6 @@ export function useClaimPrize() {
         value: BigInt(0),
       })
 
-      console.log('✅ Transaction sent:', txResponse.hash)
 
       setState(prev => ({ 
         ...prev, 
@@ -291,7 +281,6 @@ export function useClaimPrize() {
 
       const receipt = await txResponse.wait(1)
       
-      console.log('✅ Prize claimed:', receipt)
 
       setState(prev => ({ 
         ...prev, 
@@ -300,7 +289,6 @@ export function useClaimPrize() {
       }))
 
     } catch (error) {
-      console.error('❌ Error claiming prize:', error)
       setState(prev => ({ 
         ...prev, 
         error: error as Error, 
@@ -355,7 +343,6 @@ export function useClaimRefund() {
         args: [roomCode],
       })
 
-      console.log('💰 Claiming refund:', { roomCode })
 
       const txResponse = await pushChainClient.universal.sendTransaction({
         to: PONG_ESCROW_ADDRESS,
@@ -363,7 +350,6 @@ export function useClaimRefund() {
         value: BigInt(0),
       })
 
-      console.log('✅ Transaction sent:', txResponse.hash)
 
       setState(prev => ({ 
         ...prev, 
@@ -374,7 +360,6 @@ export function useClaimRefund() {
 
       const receipt = await txResponse.wait(1)
       
-      console.log('✅ Refund claimed:', receipt)
 
       setState(prev => ({ 
         ...prev, 
@@ -383,7 +368,6 @@ export function useClaimRefund() {
       }))
 
     } catch (error) {
-      console.error('❌ Error claiming refund:', error)
       setState(prev => ({ 
         ...prev, 
         error: error as Error, 
@@ -441,7 +425,6 @@ export function useClaimRefundForAbandoned() {
     })
 
     try {
-      console.log('📝 Claiming refund for abandoned match:', { roomCode })
 
       setState(prev => ({ ...prev, isPending: true, error: null, isSuccess: false }))
 
@@ -451,18 +434,12 @@ export function useClaimRefundForAbandoned() {
         args: [roomCode, signature],
       })
 
-      console.log('📤 Sending transaction to Push Chain...', {
-        to: PONG_ESCROW_ADDRESS,
-        dataPreview: data.slice(0, 20) + '...'
-      });
-
       const txResponse = await pushChainClient.universal.sendTransaction({
         to: PONG_ESCROW_ADDRESS,
         data,
         value: BigInt(0),
       })
 
-      console.log('✅ Transaction sent:', txResponse.hash)
 
       setState(prev => ({ 
         ...prev, 
@@ -473,7 +450,6 @@ export function useClaimRefundForAbandoned() {
 
       const receipt = await txResponse.wait(1)
       
-      console.log('✅ Abandoned refund claimed:', receipt)
 
       setState(prev => ({ 
         ...prev, 
@@ -482,7 +458,6 @@ export function useClaimRefundForAbandoned() {
       }))
 
     } catch (error) {
-      console.error('❌ Error claiming abandoned refund:', error)
       setState(prev => ({ 
         ...prev, 
         error: error as Error, 

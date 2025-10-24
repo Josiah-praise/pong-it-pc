@@ -5,7 +5,6 @@ import { useNavigate } from 'react-router-dom';
 const UnclaimedStakes: FC = () => {
   const navigate = useNavigate();
   
-  console.log('🎯 UnclaimedStakes DIAGNOSTIC VERSION rendering...');
 
   return (
     <div style={{ 

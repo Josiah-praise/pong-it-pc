@@ -64,7 +64,6 @@ export function useExecutorAddress(): UseExecutorAddressReturn {
       try {
         setIsLoading(true)
         
-        console.log('🔍 Resolving UEA for:', universalAccount)
         
         // Convert origin account to executor (UEA)
         // onlyCompute: true means we just calculate the address without deploying
@@ -75,15 +74,10 @@ export function useExecutorAddress(): UseExecutorAddressReturn {
         
         const ueaAddress = executorInfo.address
         
-        console.log('✅ UEA resolved:', {
-          origin: universalAccount,
-          uea: ueaAddress
-        })
         
         setExecutorAddress(ueaAddress)
         setError(null)
       } catch (err) {
-        console.error('❌ Failed to resolve executor address:', err)
         setExecutorAddress(null)
         setError(err as Error)
       } finally {

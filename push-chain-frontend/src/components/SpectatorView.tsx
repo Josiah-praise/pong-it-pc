@@ -18,6 +18,7 @@ interface GameData {
     player2: { y: number }
   }
   players: Player[]
+  ballVelocity?: { x: number; y: number }
 }
 
 interface LocationState {
@@ -46,6 +47,7 @@ const SpectatorView: FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const isMounted = useRef(false);
+  const ballTrailRef = useRef<Array<{ x: number; y: number; alpha: number }>>([]);
 
   const { roomCode, spectatorName } = (location.state as LocationState) || {};
 
@@ -63,23 +65,55 @@ const SpectatorView: FC = () => {
     const { width, height } = ctx.canvas;
     ctx.imageSmoothingEnabled = true;
 
-    ctx.fillStyle = 'rgb(116,113,203)';
-    const paddleWidth = width * 0.02;
+    ctx.fillStyle = '#DA76EC';
+    const paddleWidth = 12;
     const paddleHeight = height * 0.2;
+    const paddleRadius = paddleWidth / 2;
 
     Object.values(gameData.paddles).forEach((paddle, index) => {
       const x = index === 0 ? paddleWidth : width - paddleWidth * 2;
       const y = (paddle.y + 1) * height / 2 - paddleHeight / 2;
-      ctx.fillRect(x, y, paddleWidth, paddleHeight);
+      
+      ctx.beginPath();
+      ctx.roundRect(x, y, paddleWidth, paddleHeight, paddleRadius);
+      ctx.fill();
     });
 
-    ctx.fillStyle = 'rgb(253,208,64)';
     const ballSize = width * 0.02;
     const ballX = (gameData.ballPos.x + 1) * width / 2 - ballSize / 2;
     const ballY = (gameData.ballPos.y + 1) * height / 2 - ballSize / 2;
+    const ballCenterX = ballX + ballSize / 2;
+    const ballCenterY = ballY + ballSize / 2;
+
+    const ballSpeed = Math.sqrt(
+      (gameData.ballVelocity?.x || 0) ** 2 + (gameData.ballVelocity?.y || 0) ** 2
+    );
+    
+    if (ballSpeed > 2.5) {
+      ballTrailRef.current.push({ x: ballCenterX, y: ballCenterY, alpha: 0.6 });
+      if (ballTrailRef.current.length > 8) {
+        ballTrailRef.current.shift();
+      }
+    }
+
+    ballTrailRef.current.forEach((trail, index) => {
+      const alpha = trail.alpha * (index / ballTrailRef.current.length);
+      ctx.fillStyle = `rgba(253, 208, 64, ${alpha})`;
+      ctx.beginPath();
+      ctx.arc(trail.x, trail.y, ballSize / 2, 0, Math.PI * 2);
+      ctx.fill();
+      trail.alpha *= 0.85;
+    });
+
+    ballTrailRef.current = ballTrailRef.current.filter(t => t.alpha > 0.1);
+
+    ctx.fillStyle = 'rgb(253,208,64)';
+    ctx.shadowColor = 'rgba(253, 208, 64, 0.8)';
+    ctx.shadowBlur = ballSpeed > 3 ? 15 : 10;
     ctx.beginPath();
-    ctx.arc(ballX + ballSize/2, ballY + ballSize/2, ballSize/2, 0, Math.PI * 2);
+    ctx.arc(ballCenterX, ballCenterY, ballSize / 2, 0, Math.PI * 2);
     ctx.fill();
+    ctx.shadowBlur = 0;
   }, [gameData, isConnected]);
 
   const handleLeaveSpectate = useCallback(() => {
@@ -107,12 +141,10 @@ const SpectatorView: FC = () => {
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('Spectator connected:', socket.id);
       socket.emit('spectateGame', { roomCode, spectatorName });
     });
 
     socket.on('spectateStart', (data: GameData) => {
-      console.log('Spectating game:', data);
       setIsConnected(true);
       setGameData(data);
     });
@@ -122,18 +154,15 @@ const SpectatorView: FC = () => {
     });
 
     socket.on('spectatorUpdate', (data: { count: number }) => {
-      console.log('Spectator count:', data.count);
       setSpectatorCount(data.count);
     });
 
     socket.on('gameOver', (result: any) => {
-      console.log('Game over:', result);
       showAlert('Game has ended!', 'Game Over');
       setTimeout(() => navigate('/'), 2000);
     });
 
     socket.on('error', (error: { message: string }) => {
-      console.error('Spectator error:', error);
       showAlert(error.message, 'Error');
       setTimeout(() => navigate('/'), 2000);
     });

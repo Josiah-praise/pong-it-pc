@@ -44,11 +44,6 @@ export async function authenticatePlayer(
   name?: string
 ): Promise<AuthResponse> {
   const normalizedAddress = walletAddress.toLowerCase().trim();
-  
-  console.log('🔐 Authenticating player:', {
-    address: normalizedAddress,
-    name: name || '(checking existing)',
-  });
 
   try {
     const response = await fetch(`${BACKEND_URL}/players/by-wallet`, {
@@ -78,15 +73,9 @@ export async function authenticatePlayer(
       throw new Error(data.error || 'Authentication failed');
     }
 
-    console.log('✅ Authentication successful:', {
-      name: data.player.name,
-      isNew: data.isNewPlayer,
-      rating: data.player.rating,
-    });
 
     return data as AuthResponse;
   } catch (error) {
-    console.error('❌ Authentication error:', error);
     throw error;
   }
 }
@@ -118,7 +107,6 @@ export async function getPlayerByWallet(
     const player = await response.json();
     return player as Player;
   } catch (error) {
-    console.error('Error fetching player by wallet:', error);
     return null;
   }
 }
@@ -155,7 +143,6 @@ export async function updatePlayerName(
 
     return data.player as Player;
   } catch (error) {
-    console.error('Error updating player name:', error);
     throw error;
   }
 }

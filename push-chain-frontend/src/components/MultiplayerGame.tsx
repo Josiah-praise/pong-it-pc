@@ -79,6 +79,7 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username, walletAddress, au
   const prevGameDataRef = useRef<GameData | null>(null);
   const isMounted = useRef(false);
   const cursorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const ballTrailRef = useRef<Array<{ x: number; y: number; alpha: number }>>([]);
 
   // Dialog hook
   const { dialogState, showAlert, showConfirm, handleConfirm, handleCancel } = useDialog();
@@ -132,22 +133,54 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username, walletAddress, au
     ctx.imageSmoothingEnabled = true;
 
     ctx.fillStyle = '#DA76EC';
-    const paddleWidth = width * 0.02;
+    const paddleWidth = 12;
     const paddleHeight = height * 0.2;
+    const paddleRadius = paddleWidth / 2;
 
     Object.values(gameData.paddles).forEach((paddle, index) => {
       const x = index === 0 ? paddleWidth : width - paddleWidth * 2;
       const y = (paddle.y + 1) * height / 2 - paddleHeight / 2;
-      ctx.fillRect(x, y, paddleWidth, paddleHeight);
+      
+      ctx.beginPath();
+      ctx.roundRect(x, y, paddleWidth, paddleHeight, paddleRadius);
+      ctx.fill();
     });
 
-    ctx.fillStyle = 'rgb(253,208,64)';
     const ballSize = width * 0.02;
     const ballX = (gameData.ballPos.x + 1) * width / 2 - ballSize / 2;
     const ballY = (gameData.ballPos.y + 1) * height / 2 - ballSize / 2;
+    const ballCenterX = ballX + ballSize / 2;
+    const ballCenterY = ballY + ballSize / 2;
+
+    const ballSpeed = Math.sqrt(
+      (gameData.ballVelocity?.x || 0) ** 2 + (gameData.ballVelocity?.y || 0) ** 2
+    );
+    
+    if (ballSpeed > 2.5) {
+      ballTrailRef.current.push({ x: ballCenterX, y: ballCenterY, alpha: 0.6 });
+      if (ballTrailRef.current.length > 8) {
+        ballTrailRef.current.shift();
+      }
+    }
+
+    ballTrailRef.current.forEach((trail, index) => {
+      const alpha = trail.alpha * (index / ballTrailRef.current.length);
+      ctx.fillStyle = `rgba(253, 208, 64, ${alpha})`;
+      ctx.beginPath();
+      ctx.arc(trail.x, trail.y, ballSize / 2, 0, Math.PI * 2);
+      ctx.fill();
+      trail.alpha *= 0.85;
+    });
+
+    ballTrailRef.current = ballTrailRef.current.filter(t => t.alpha > 0.1);
+
+    ctx.fillStyle = 'rgb(253,208,64)';
+    ctx.shadowColor = 'rgba(253, 208, 64, 0.8)';
+    ctx.shadowBlur = ballSpeed > 3 ? 15 : 10;
     ctx.beginPath();
-    ctx.arc(ballX + ballSize/2, ballY + ballSize/2, ballSize/2, 0, Math.PI * 2);
+    ctx.arc(ballCenterX, ballCenterY, ballSize / 2, 0, Math.PI * 2);
     ctx.fill();
+    ctx.shadowBlur = 0;
   }, [gameData, isWaiting, roomCode]);
 
   // Cursor auto-hide management
@@ -261,11 +294,9 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username, walletAddress, au
         'Leave the room? You can reclaim your stake from "Unclaimed Stakes".',
         () => {
           if (socketRef.current && roomCode) {
-            console.log('📤 Emitting leaveAbandonedRoom (forfeit button):', { roomCode });
             
             // Use emit with callback to ensure backend received the event
             socketRef.current.emit('leaveAbandonedRoom', { roomCode }, (ack: any) => {
-              console.log('✅ Backend acknowledged abandonment (forfeit):', ack);
             });
             
             // Wait for backend to process before navigating (increased timeout)
@@ -315,29 +346,20 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username, walletAddress, au
       return;
     }
 
-    console.log('💎 Player2 initiating stake:', stakingData);
     setStakingErrorMessage(null);
     setIsPlayer2Staking(true);
 
     try {
       await stakeAsPlayer2(stakingData.roomCode, stakingData.stakeAmount);
     } catch (error) {
-      console.error('Error initiating Player2 stake:', error);
       setIsPlayer2Staking(false);
     }
   }, [isConnected, stakingData, stakeAsPlayer2, showAlert]);
 
   // Handle successful Player2 staking transaction
   useEffect(() => {
-    console.log('🔍 Player2 Staking useEffect:', {
-      isPlayer2StakingSuccess,
-      player2StakingTxHash,
-      stakingData,
-      address
-    });
 
     if (isPlayer2StakingSuccess && player2StakingTxHash && stakingData) {
-      console.log('✅ Player2 staking successful! Updating game record...');
 
       fetch(`${BACKEND_URL}/games`, {
         method: 'POST',
@@ -352,10 +374,8 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username, walletAddress, au
       })
         .then(res => res.json())
         .then(data => {
-          console.log('✅ Game record updated with Player2 stake:', data);
         })
         .catch(err => {
-          console.error('❌ Failed to update game record:', err);
         });
 
       if (socketRef.current) {
@@ -373,7 +393,6 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username, walletAddress, au
   // Handle Player2 staking errors
   useEffect(() => {
     if (player2StakingError) {
-      console.error('Player2 staking error:', player2StakingError);
       setIsPlayer2Staking(false);
 
       const parsedError = parseTransactionError(player2StakingError);
@@ -398,7 +417,6 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username, walletAddress, au
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('🔌 Connected:', socket.id, 'Wallet:', walletAddress);
 
       const playerData: Player = {
         name: username,
@@ -421,35 +439,29 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username, walletAddress, au
     });
 
     socket.on('roomCreated', (data: { roomCode: string }) => {
-      console.log('Room created:', data.roomCode);
       setRoomCode(data.roomCode);
       setIsWaiting(true);
     });
 
     socket.on('waitingForOpponent', (data: { roomCode: string }) => {
-      console.log('Waiting for opponent:', data.roomCode);
       setRoomCode(data.roomCode);
       setIsWaiting(true);
     });
 
     socket.on('roomReady', (data: any) => {
-      console.log('Room ready:', data);
       setIsWaiting(true);
     });
 
     socket.on('stakedMatchJoined', (data: StakingData) => {
-      console.log('💎 Staked match joined! Player2 needs to stake:', data);
       setStakingData(data);
       setShowPlayer2StakingModal(true);
     });
 
     socket.on('waitingForPlayer2Stake', (data: any) => {
-      console.log('⏳ Waiting for Player2 to stake:', data);
       setIsWaiting(true);
     });
 
     socket.on('gameStart', (data: GameData) => {
-      console.log('Game starting:', data);
       setIsWaiting(false);
       setGameData(data);
       prevGameDataRef.current = data;
@@ -492,7 +504,6 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username, walletAddress, au
 
       // Don't disconnect socket on game over - keep it alive for rematch
       // The GameOver component will create its own socket for game-over state
-      console.log('🎮 Game over received, navigating while keeping game socket alive');
       
       // Set flag to prevent socket disconnection on unmount
       isNavigatingToGameOver.current = true;
@@ -577,25 +588,21 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username, walletAddress, au
     });
 
     socket.on('abandonmentProcessed', (data: { message: string }) => {
-      console.log('✅ Abandonment processed:', data.message);
       // Room has been marked as abandoned, refund will be available
     });
 
     socket.on('error', (error: { message: string }) => {
-      console.error('Socket error:', error);
       showAlert(error.message, 'Error');
     });
 
     return () => {
       // Don't disconnect if navigating to game-over screen (keep socket alive for rematch)
       if (isNavigatingToGameOver.current) {
-        console.log('🎮 Skipping socket disconnect - navigating to game-over screen');
         socket.removeAllListeners(); // Still remove listeners to prevent memory leaks
         return;
       }
       
       // Normal cleanup for other navigation (back to home, etc.)
-      console.log('🧹 Cleaning up game socket');
       socket.removeAllListeners();
       socket.disconnect();
     };
@@ -718,12 +725,6 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username, walletAddress, au
     // Check if this is a staked game with no opponent (abandonment scenario)
     const hasOpponent = gameData.players.length > 1 && gameData.players[1]?.name;
     
-    console.log('🚪 handleLeaveGame called:', {
-      isStakedGame,
-      hasOpponent,
-      isWaiting,
-      playersCount: gameData.players.length
-    });
     
     if (isStakedGame && !hasOpponent && isWaiting) {
       // This is abandonment, not forfeit
@@ -731,11 +732,9 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username, walletAddress, au
         'Leave the room? You can reclaim your stake from "Unclaimed Stakes".',
         () => {
           if (socketRef.current && roomCode) {
-            console.log('📤 Emitting leaveAbandonedRoom:', { roomCode });
             
             // Use emit with callback to ensure backend received the event
             socketRef.current.emit('leaveAbandonedRoom', { roomCode }, (ack: any) => {
-              console.log('✅ Backend acknowledged abandonment:', ack);
             });
             
             // Wait for backend to process before navigating (increased timeout)
@@ -774,11 +773,9 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username, walletAddress, au
 
   const showInfoToast = useCallback((title: string, message: string) => {
     // Info toasts should not block gameplay (no modal overlay)
-    console.info(`${title}: ${message}`);
   }, [showAlert]);
 
   const showSuccessToast = useCallback((title: string, message: string) => {
-    console.info(`${title}: ${message}`);
   }, [showAlert]);
 
   return (

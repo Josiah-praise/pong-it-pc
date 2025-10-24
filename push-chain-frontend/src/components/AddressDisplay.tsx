@@ -24,7 +24,6 @@ const AddressDisplay: FC = () => {
         const player = await getPlayerByWallet(walletAddress);
         setUsername(player?.name || null);
       } catch (error) {
-        console.error('Failed to fetch username for address display:', error);
         setUsername(null);
       }
     };

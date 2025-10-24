@@ -16,7 +16,6 @@ export const PONG_ESCROW_ADDRESS = import.meta.env.VITE_PONG_ESCROW_ADDRESS as `
 
 // Validate that contract address is set
 if (!PONG_ESCROW_ADDRESS || PONG_ESCROW_ADDRESS === 'undefined') {
-  console.error('❌ VITE_PONG_ESCROW_ADDRESS not set in .env file!')
 }
 
 // Preset stake amounts (in PC/ETH)
