@@ -10,9 +10,12 @@ import { parseTransactionError } from '../utils/errorParser';
 import { useDialog } from '../hooks/useDialog';
 import Dialog from './Dialog';
 import AddressDisplay from './AddressDisplay';
+import { type Player as AuthPlayer } from '../services/authService';
 
 interface MultiplayerGameProps {
   username: string | null
+  walletAddress: string | null
+  authenticatedPlayer: AuthPlayer | null
 }
 
 interface Player {
@@ -42,7 +45,7 @@ interface LocationState {
   roomCode?: string
 }
 
-const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
+const MultiplayerGame: FC<MultiplayerGameProps> = ({ username, walletAddress, authenticatedPlayer }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const socketRef = useRef<Socket | null>(null);
   const isNavigatingToGameOver = useRef(false); // Track if navigating to game-over
@@ -374,17 +377,20 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
       withCredentials: true,
       transports: ['websocket'],
       path: '/socket.io/',
-      query: { username }
+      query: { 
+        username,
+        walletAddress: walletAddress || undefined
+      }
     });
 
     socketRef.current = socket;
 
     socket.on('connect', () => {
-      console.log('Connected:', socket.id);
+      console.log('🔌 Connected:', socket.id, 'Wallet:', walletAddress);
 
       const playerData: Player = {
         name: username,
-        rating: INITIAL_RATING,
+        rating: authenticatedPlayer?.rating || INITIAL_RATING,
         socketId: socket.id
       };
 
@@ -483,6 +489,7 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username }) => {
         state: {
           ...result,
           isWinner,
+          playerName: username, // Pass username for GameOver socket connection
           message: isWinner ? 'You Won!' : 'You Lost!',
           rating: result.ratings?.[socket.id],
           finalScore: result.finalScore || result.stats?.score,

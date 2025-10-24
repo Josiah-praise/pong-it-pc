@@ -175,11 +175,112 @@ app.get('/api/players/:name', async (req, res) => {
   }
 });
 
-// Create or update player
+// Get or create player by wallet address (NEW - wallet-based auth)
+app.post('/players/by-wallet', async (req, res) => {
+  try {
+    const { walletAddress, name } = req.body;
+
+    if (!walletAddress) {
+      return res.status(400).json({ error: 'Wallet address is required' });
+    }
+
+    const normalizedAddress = walletAddress.toLowerCase().trim();
+    let player = await Player.findOne({ walletAddress: normalizedAddress });
+
+    if (!player) {
+      // New wallet - name is required
+      if (!name) {
+        return res.status(404).json({ 
+          error: 'Player not found',
+          needsUsername: true 
+        });
+      }
+
+      const trimmedName = name.trim();
+
+      // Check if username is already taken
+      const existingPlayer = await Player.findOne({ name: trimmedName });
+      if (existingPlayer) {
+        return res.status(409).json({ 
+          error: 'Username already taken',
+          usernameTaken: true 
+        });
+      }
+
+      // Create new player
+      player = new Player({
+        walletAddress: normalizedAddress,
+        name: trimmedName,
+        rating: 1000,
+        gamesPlayed: 0,
+        wins: 0,
+        losses: 0,
+        lastActive: new Date()
+      });
+
+      await player.save();
+      console.log(`✅ Created new player: ${trimmedName} (${normalizedAddress})`);
+      return res.status(201).json({ 
+        player,
+        isNewPlayer: true 
+      });
+    }
+
+    // Existing player - update last active (NO name changes allowed)
+    player.lastActive = new Date();
+    await player.save();
+    
+    console.log(`✅ Retrieved existing player: ${player.name} (${normalizedAddress})`);
+    res.status(200).json({ 
+      player,
+      isNewPlayer: false 
+    });
+  } catch (error) {
+    console.error('Error in /players/by-wallet:', error);
+    
+    // Handle duplicate key errors
+    if (error.code === 11000) {
+      return res.status(409).json({ 
+        error: 'Username already taken',
+        usernameTaken: true 
+      });
+    }
+    
+    res.status(500).json({ error: 'Failed to authenticate player' });
+  }
+});
+
+// Get player by wallet address
+app.get('/players/by-wallet/:walletAddress', async (req, res) => {
+  try {
+    const normalizedAddress = req.params.walletAddress.toLowerCase().trim();
+    const player = await Player.findOne({ walletAddress: normalizedAddress }).lean();
+    
+    if (!player) {
+      return res.status(404).json({ 
+        error: 'Player not found',
+        needsUsername: true 
+      });
+    }
+    
+    res.status(200).json(player);
+  } catch (error) {
+    console.error('Error fetching player by wallet:', error);
+    res.status(500).json({ error: 'Failed to fetch player' });
+  }
+});
+
+// Create or update player (LEGACY - kept for backwards compatibility)
 app.post('/players', async (req, res) => {
   try {
-    const { name, rating, gameResult } = req.body;
+    const { name, rating, gameResult, walletAddress } = req.body;
 
+    // NEW: If walletAddress provided, use wallet-based auth
+    if (walletAddress) {
+      return res.redirect(307, '/players/by-wallet');
+    }
+
+    // LEGACY: Name-based system (deprecated)
     if (!name) {
       return res.status(400).json({ error: 'Player name is required' });
     }
@@ -187,8 +288,9 @@ app.post('/players', async (req, res) => {
     let player = await Player.findOne({ name });
 
     if (!player) {
-      // Create new player
+      // Create new player (legacy format)
       player = new Player({
+        walletAddress: `legacy_${name}_${Date.now()}`, // Generate pseudo-address for legacy players
         name,
         rating: rating || 1000,
         gamesPlayed: 0,

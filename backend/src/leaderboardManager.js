@@ -6,19 +6,28 @@ class LeaderboardManager {
     this.cacheTimeout = 5000;
   }
 
-  async getPlayerRating(playerName) {
+  async getPlayerRating(playerName, walletAddress = null) {
     try {
       const cached = this.localCache.get(playerName);
       if (cached && Date.now() - cached.timestamp < this.cacheTimeout) {
         return cached.rating;
       }
 
-      // Try to find existing player
-      let player = await Player.findOne({ name: playerName });
-
-      // Create new player if doesn't exist
+      // Try to find existing player by wallet address first, then by name
+      let player;
+      if (walletAddress) {
+        player = await Player.findOne({ walletAddress: walletAddress.toLowerCase() });
+      }
+      
+      // Fallback to name search (for legacy players)
       if (!player) {
+        player = await Player.findOne({ name: playerName });
+      }
+
+      // Create new player if doesn't exist (LEGACY - should be created via /players/by-wallet endpoint)
+      if (!player && walletAddress) {
         player = new Player({
+          walletAddress: walletAddress.toLowerCase(),
           name: playerName,
           rating: 1000,
           gamesPlayed: 0,
@@ -27,7 +36,20 @@ class LeaderboardManager {
           lastActive: new Date()
         });
         await player.save();
-        console.log(`Created new player: ${playerName} with rating 1000`);
+        console.log(`⚠️ Created new player (legacy): ${playerName} (${walletAddress}) with rating 1000`);
+      } else if (!player) {
+        // No wallet address and player doesn't exist - create legacy player
+        player = new Player({
+          walletAddress: `legacy_${playerName}_${Date.now()}`,
+          name: playerName,
+          rating: 1000,
+          gamesPlayed: 0,
+          wins: 0,
+          losses: 0,
+          lastActive: new Date()
+        });
+        await player.save();
+        console.log(`⚠️ Created legacy player: ${playerName} with rating 1000`);
       }
 
       const rating = player.rating;
@@ -44,12 +66,20 @@ class LeaderboardManager {
     }
   }
 
-  async updatePlayerRating(playerName, newRating, gameResult) {
+  async updatePlayerRating(playerName, newRating, gameResult, walletAddress = null) {
     try {
-      const player = await Player.findOne({ name: playerName });
+      // Try to find by wallet address first, then by name
+      let player;
+      if (walletAddress) {
+        player = await Player.findOne({ walletAddress: walletAddress.toLowerCase() });
+      }
+      
+      if (!player) {
+        player = await Player.findOne({ name: playerName });
+      }
 
       if (!player) {
-        console.error(`Player not found: ${playerName}`);
+        console.error(`Player not found: ${playerName}${walletAddress ? ` (${walletAddress})` : ''}`);
         return;
       }
 
@@ -73,7 +103,7 @@ class LeaderboardManager {
         timestamp: Date.now()
       });
 
-      console.log(`Updated ${playerName} rating: ${newRating} (${gameResult})`);
+      console.log(`✅ Updated ${playerName} rating: ${newRating} (${gameResult})`);
     } catch (error) {
       console.error('Error updating player rating:', error);
     }

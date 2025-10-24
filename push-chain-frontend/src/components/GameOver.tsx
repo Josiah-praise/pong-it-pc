@@ -10,6 +10,7 @@ interface GameOverResult {
   message: string
   finalScore: [number, number]
   rating: number
+  playerName: string
   isWinner?: boolean
   isStaked?: boolean
   stakeAmount?: string
@@ -41,8 +42,10 @@ const GameOver: FC = () => {
       return;
     }
 
-    const username = localStorage.getItem(STORAGE_KEY);
+    // Get username from result (passed from MultiplayerGame)
+    const username = result.playerName;
     if (!username) {
+      console.error('❌ No username in game result');
       navigate('/');
       return;
     }

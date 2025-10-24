@@ -1,15 +1,36 @@
-import { type FC } from 'react';
+import { type FC, useState, useEffect } from 'react';
 import { usePushWalletContext, usePushChainClient } from '@pushchain/ui-kit';
-import { STORAGE_KEY } from '../constants';
+import { getPlayerByWallet } from '../services/authService';
 import '../styles/AddressDisplay.css';
 
 const AddressDisplay: FC = () => {
   const { connectionStatus, universalAccount } = usePushWalletContext();
   const { pushChainClient } = usePushChainClient();
   const isConnected = connectionStatus === 'connected';
+  const [username, setUsername] = useState<string | null>(null);
 
-  // Get username from localStorage
-  const username = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
+  // Get wallet address
+  const walletAddress = pushChainClient?.universal?.account?.toLowerCase() || null;
+
+  // Fetch username from database based on wallet address
+  useEffect(() => {
+    const fetchUsername = async () => {
+      if (!walletAddress) {
+        setUsername(null);
+        return;
+      }
+
+      try {
+        const player = await getPlayerByWallet(walletAddress);
+        setUsername(player?.name || null);
+      } catch (error) {
+        console.error('Failed to fetch username for address display:', error);
+        setUsername(null);
+      }
+    };
+
+    fetchUsername();
+  }, [walletAddress]);
 
   if (!isConnected || !username) return null;
 

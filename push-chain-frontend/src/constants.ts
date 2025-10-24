@@ -1,4 +1,6 @@
 // Game constants
+// NOTE: STORAGE_KEY is DEPRECATED - Username is fetched from database via wallet address
+// Kept for backwards compatibility only, not used for authentication
 export const STORAGE_KEY = 'pong_username'
 
 // Game settings

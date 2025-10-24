@@ -9,11 +9,15 @@ import { useStakeAsPlayer1 } from '../hooks/usePushContract';
 import { parseTransactionError } from '../utils/errorParser';
 import { useDialog } from '../hooks/useDialog';
 import Dialog from './Dialog';
+import { type Player as AuthPlayer } from '../services/authService';
 
 interface WelcomeProps {
   setGameState: (state: any) => void
   savedUsername: string | null
-  onUsernameSet: (username: string) => void
+  onUsernameSet: (username: string, walletAddress?: string) => void
+  authenticatedPlayer: AuthPlayer | null
+  isAuthenticating: boolean
+  walletAddress: string | null
 }
 
 interface Ranking {
@@ -30,7 +34,7 @@ interface ActiveGame {
   spectatorCount: number
 }
 
-const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet }) => {
+const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet, authenticatedPlayer, isAuthenticating, walletAddress }) => {
   const [rankings, setRankings] = useState<Ranking[]>([]);
   const [activeGames, setActiveGames] = useState<ActiveGame[]>([]);
   const [showTitle, setShowTitle] = useState(false);
@@ -260,18 +264,30 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet 
   }, [stakingError]);
 
   const promptUsername = (callback: (username: string) => void) => {
-    if (savedUsername) {
-      callback(savedUsername);
+    // If user is authenticated, use their player data
+    if (authenticatedPlayer) {
+      callback(authenticatedPlayer.name);
+      return;
+    }
+
+    // If not authenticated but wallet is connected, prompt for username
+    if (!walletAddress) {
+      showAlert('Please connect your wallet first.', 'Wallet Required');
       return;
     }
 
     const modal = document.createElement('dialog');
     modal.innerHTML = `
       <form method="dialog">
-        <h2>Enter Your Username</h2>
-        <input type="text" id="username" value="" required minlength="2" maxlength="15" placeholder="Your name" autocomplete="off">
+        <h2>Welcome! Create Your Profile</h2>
+        <p style="font-size: 0.9rem; color: rgba(255, 255, 255, 0.7); margin-bottom: 1rem;">
+          This is your first time connecting this wallet.<br/>
+          Choose a unique username to get started.
+        </p>
+        <input type="text" id="username" value="" required minlength="2" maxlength="15" placeholder="Your unique username" autocomplete="off">
+        <p id="error-message" style="color: #ff4444; font-size: 0.85rem; margin-top: 0.5rem; display: none;"></p>
         <div class="buttons">
-          <button type="submit">Continue</button>
+          <button type="submit" id="submit-btn">Create Profile</button>
         </div>
       </form>
     `;
@@ -281,6 +297,9 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet 
 
     // Clear and focus the input
     const input = document.getElementById('username') as HTMLInputElement;
+    const errorMsg = document.getElementById('error-message') as HTMLElement;
+    const submitBtn = document.getElementById('submit-btn') as HTMLButtonElement;
+    
     if (input) {
       input.value = '';
       input.focus();
@@ -288,14 +307,37 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet 
 
     const form = modal.querySelector('form');
     if (form) {
-      form.onsubmit = (e) => {
+      form.onsubmit = async (e) => {
         e.preventDefault();
-        const input = document.getElementById('username') as HTMLInputElement;
         const username = input.value.trim();
-        if (username) {
-          onUsernameSet(username);
+        
+        if (!username || !walletAddress) return;
+
+        // Disable submit button during request
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Creating...';
+        errorMsg.style.display = 'none';
+
+        try {
+          // Call onUsernameSet with wallet address
+          await onUsernameSet(username, walletAddress);
           callback(username);
           modal.remove();
+        } catch (error: any) {
+          // Handle username taken error
+          if (error.message === 'USERNAME_TAKEN') {
+            errorMsg.textContent = `Username "${username}" is already taken. Please choose another.`;
+            errorMsg.style.display = 'block';
+            input.value = '';
+            input.focus();
+          } else {
+            errorMsg.textContent = 'Failed to create profile. Please try again.';
+            errorMsg.style.display = 'block';
+          }
+          
+          // Re-enable submit button
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Create Profile';
         }
       };
     }
@@ -309,7 +351,10 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet 
     promptUsername((username) => {
       setGameState((prev: any) => ({
         ...prev,
-        player1: { name: username, rating: 800 },
+        player1: { 
+          name: username, 
+          rating: authenticatedPlayer?.rating || 1000 
+        },
         gameMode: 'quick'
       }));
       navigate('/game', { state: { gameMode: 'quick' } });
@@ -324,7 +369,10 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet 
     promptUsername((username) => {
       setGameState((prev: any) => ({
         ...prev,
-        player1: { name: username, rating: 800 },
+        player1: { 
+          name: username, 
+          rating: authenticatedPlayer?.rating || 1000 
+        },
         gameMode: 'create'
       }));
       navigate('/game', { state: { gameMode: 'create' } });
@@ -375,7 +423,10 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet 
           const roomCode = input.value.toUpperCase();
           setGameState((prev: any) => ({
             ...prev,
-            player1: { name: username, rating: 800 },
+            player1: { 
+              name: username, 
+              rating: authenticatedPlayer?.rating || 1000 
+            },
             gameMode: 'join',
             roomCode
           }));

@@ -1,6 +1,16 @@
 const mongoose = require('mongoose');
 
 const playerSchema = new mongoose.Schema({
+  // Wallet address - primary identifier (UEA for cross-chain, EOA for native Push Chain)
+  walletAddress: {
+    type: String,
+    required: true,
+    unique: true,
+    lowercase: true,
+    trim: true,
+    index: true
+  },
+  // Username - UNIQUE and permanently bound to wallet
   name: {
     type: String,
     required: true,
@@ -38,6 +48,9 @@ const playerSchema = new mongoose.Schema({
 
 // Index for efficient sorting by rating
 playerSchema.index({ rating: -1 });
+
+// Compound index for name + walletAddress queries
+playerSchema.index({ walletAddress: 1, name: 1 });
 
 // Method to update player stats after a game
 playerSchema.methods.updateGameStats = function(gameResult, newRating) {
