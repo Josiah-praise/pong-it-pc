@@ -583,11 +583,50 @@ class MultiplayerHandler {
     console.log(`🔵 handleLeaveAbandonedRoom called - Socket: ${socket.id}, Room: ${roomCode}`);
     
     const room = this.roomManager.getRoom(roomCode);
+    
+    // CRITICAL FIX: If room not in memory (backend restart), check database directly
     if (!room) {
-      console.log(`⚠️ No room found for code ${roomCode}`);
-      return;
+      console.log(`⚠️ No room in memory for code ${roomCode} - checking database directly`);
+      
+      try {
+        const game = await Game.findOne({ roomCode });
+        
+        if (!game) {
+          console.log(`❌ No game found in database for room ${roomCode}`);
+          return;
+        }
+        
+        console.log(`📊 Found game in database:`, {
+          roomCode: game.roomCode,
+          isStaked: game.isStaked,
+          hasPlayer2: !!game.player2TxHash,
+          status: game.status
+        });
+        
+        // Check if this game is eligible for abandonment
+        if (game.isStaked && !game.player2TxHash && game.status === 'waiting') {
+          console.log(`💰 Game ${roomCode} is eligible for abandonment - marking for refund`);
+          await this.markGameAsAbandoned(roomCode);
+          
+          socket.emit('abandonmentProcessed', {
+            message: 'Room abandoned. You can reclaim your stake from "Unclaimed Stakes".'
+          });
+          return;
+        } else {
+          console.log(`⚠️ Game ${roomCode} not eligible for abandonment`, {
+            isStaked: game.isStaked,
+            hasPlayer2Tx: !!game.player2TxHash,
+            status: game.status
+          });
+          return;
+        }
+      } catch (error) {
+        console.error(`❌ Error checking database for abandoned game:`, error);
+        return;
+      }
     }
 
+    // Room exists in memory - use normal flow
     const isHost = room.host && room.host.socketId === socket.id;
 
     console.log(`🚪 handleLeaveAbandonedRoom - Room: ${roomCode}`, {
