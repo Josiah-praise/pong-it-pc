@@ -1,0 +1,50 @@
+.speaker-icon-button {
+  position: fixed !important;
+  bottom: 20px;
+  left: 20px;
+  width: 48px;
+  height: 48px;
+  border: 2px solid #DA76EC;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.8);
+  color: #DA76EC;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  z-index: 9999;
+  padding: 0;
+  box-shadow: 0 4px 12px rgba(218, 118, 236, 0.3);
+  pointer-events: auto;
+}
+
+.speaker-icon-button:hover {
+  background: rgba(218, 118, 236, 0.2);
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(218, 118, 236, 0.5);
+}
+
+.speaker-icon-button:active {
+  transform: scale(0.95);
+}
+
+.speaker-icon-button svg {
+  width: 24px;
+  height: 24px;
+}
+
+@media (max-width: 768px) {
+  .speaker-icon-button {
+    width: 44px;
+    height: 44px;
+    bottom: 15px;
+    left: 15px;
+  }
+
+  .speaker-icon-button svg {
+    width: 22px;
+    height: 22px;
+  }
+}
+

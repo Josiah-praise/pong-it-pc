@@ -28,8 +28,11 @@ class SoundManager {
   
   public isGenomeAudioPlaying: boolean
   private initialized: boolean
+  private isMuted: boolean
 
   constructor() {
+    const savedMuteState = localStorage.getItem('pong-it-muted')
+    this.isMuted = savedMuteState === 'true'
     this.hitSound = new Audio('/sounds/hit2.mp3')
     this.scoreSound = new Audio('/sounds/score2.mp3')
     this.loadSound = new Audio('/sounds/load2.mp3')
@@ -107,6 +110,10 @@ class SoundManager {
 
   async playWithErrorHandling(playFunction: () => Promise<void>, fallbackMessage = ''): Promise<void> {
     try {
+      if (this.isMuted) {
+        return
+      }
+      
       if (!this.initialized) {
         await this.init()
       }
@@ -120,12 +127,15 @@ class SoundManager {
   }
 
   startBackgroundMusic(): void {
+    if (this.isMuted) return
     this.startGenomeAudio(this.defaultGenome)
   }
 
   startGenomeAudio(genome: string | null = null): Promise<void> | void {
+    if (this.isMuted) return
     if (!this.initialized) {
       return this.init().then(() => {
+        if (this.isMuted) return
         this.isGenomeAudioPlaying = true
         return this.createRhythmicSound(genome || this.defaultGenome)
       })
@@ -151,12 +161,17 @@ class SoundManager {
   }
 
   startSimpleGenomeAudio(genome: string | null = null): void {
+    if (this.isMuted) return
     this.isGenomeAudioPlaying = true
     this.createRhythmicSound(genome || this.defaultGenome)
   }
 
   createRhythmicSound(genome: string): void {
     try {
+      if (this.isMuted) {
+        return
+      }
+      
       this.stopAll()
       
       if (!this.ensureAudioContext()) {
@@ -302,7 +317,7 @@ class SoundManager {
 
   playNote(frequency: number, duration: number, volume: number, waveType: WaveType = 'triangle'): { osc: OscillatorNode; gainNode: GainNode } | null {
     try {
-      if (!this.audioContext) {
+      if (this.isMuted || !this.audioContext) {
         return null
       }
       
@@ -346,7 +361,7 @@ class SoundManager {
 
   createBassDrone(frequency: number): void {
     try {
-      if (!this.audioContext) return
+      if (this.isMuted || !this.audioContext) return
       
       const osc = this.audioContext.createOscillator()
       const gainNode = this.audioContext.createGain()
@@ -372,7 +387,7 @@ class SoundManager {
 
   createRhythmicPercussion(beatInterval: number, genome: string, baseFreq: number): void {
     try {
-      if (!this.audioContext) return
+      if (this.isMuted || !this.audioContext) return
       
       const frequencies = [
         baseFreq * 1,
@@ -493,6 +508,7 @@ class SoundManager {
   }
 
   playHitSound(): Promise<void> {
+    if (this.isMuted) return Promise.resolve()
     return this.playWithErrorHandling(
       () => {
         this.hitSound.currentTime = 0
@@ -508,6 +524,7 @@ class SoundManager {
   }
 
   playScoreSound(): Promise<void> {
+    if (this.isMuted) return Promise.resolve()
     return this.playWithErrorHandling(
       () => {
         this.scoreSound.currentTime = 0
@@ -521,6 +538,7 @@ class SoundManager {
   }
 
   playLoadSound(): Promise<void> {
+    if (this.isMuted) return Promise.resolve()
     return this.playWithErrorHandling(
       () => {
         this.loadSound.currentTime = 0
@@ -534,6 +552,7 @@ class SoundManager {
   }
 
   playGameOverSound(): Promise<void> {
+    if (this.isMuted) return Promise.resolve()
     return this.playWithErrorHandling(
       () => {
         this.gameOverSound.currentTime = 0
@@ -547,6 +566,7 @@ class SoundManager {
   }
 
   playIntroSound(): Promise<void> {
+    if (this.isMuted) return Promise.resolve()
     return this.playWithErrorHandling(
       () => {
         this.introSound.currentTime = 0
@@ -593,6 +613,29 @@ class SoundManager {
         return Promise.resolve()
       }
     })
+  }
+
+  toggleMute(): boolean {
+    this.isMuted = !this.isMuted
+    localStorage.setItem('pong-it-muted', String(this.isMuted))
+    
+    if (this.isMuted) {
+      this.stopAll()
+    }
+    
+    return this.isMuted
+  }
+
+  getMuteStatus(): boolean {
+    return this.isMuted
+  }
+
+  setMuted(muted: boolean): void {
+    this.isMuted = muted
+    localStorage.setItem('pong-it-muted', String(this.isMuted))
+    if (this.isMuted) {
+      this.stopAll()
+    }
   }
 }
 

@@ -8,6 +8,7 @@ import GameOver from './components/GameOver'
 import MyWins from './components/MyWins'
 import GameHistory from './components/GameHistory'
 import UnclaimedStakes from './components/UnclaimedStakes'
+import SpeakerIcon from './components/SpeakerIcon'
 import './styles/App.css'
 import { STORAGE_KEY } from './constants'
 import { authenticatePlayer, type Player as AuthPlayer } from './services/authService'
@@ -174,6 +175,8 @@ function App() {
           element={<UnclaimedStakes />}
         />
       </Routes>
+      
+      <SpeakerIcon />
     </div>
   )
 }
