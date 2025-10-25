@@ -19,6 +19,7 @@ interface GameData {
   }
   players: Player[]
   ballVelocity?: { x: number; y: number }
+  extraBalls?: Array<{ x: number; y: number }>
 }
 
 interface LocationState {
@@ -40,7 +41,8 @@ const SpectatorView: FC = () => {
       player1: { y: 0 },
       player2: { y: 0 }
     },
-    players: []
+    players: [],
+    extraBalls: []
   });
   const [spectatorCount, setSpectatorCount] = useState(0);
   const [isConnected, setIsConnected] = useState(false);
@@ -80,16 +82,20 @@ const SpectatorView: FC = () => {
     });
 
     const ballSize = width * 0.02;
-    const ballX = (gameData.ballPos.x + 1) * width / 2 - ballSize / 2;
-    const ballY = (gameData.ballPos.y + 1) * height / 2 - ballSize / 2;
-    const ballCenterX = ballX + ballSize / 2;
-    const ballCenterY = ballY + ballSize / 2;
+    const balls = [{ x: gameData.ballPos.x, y: gameData.ballPos.y }];
+    if (gameData.extraBalls?.length) {
+      balls.push(...gameData.extraBalls);
+    }
 
     const ballSpeed = Math.sqrt(
       (gameData.ballVelocity?.x || 0) ** 2 + (gameData.ballVelocity?.y || 0) ** 2
     );
-    
+
     if (ballSpeed > 2.5) {
+      const ballX = (gameData.ballPos.x + 1) * width / 2 - ballSize / 2;
+      const ballY = (gameData.ballPos.y + 1) * height / 2 - ballSize / 2;
+      const ballCenterX = ballX + ballSize / 2;
+      const ballCenterY = ballY + ballSize / 2;
       ballTrailRef.current.push({ x: ballCenterX, y: ballCenterY, alpha: 0.6 });
       if (ballTrailRef.current.length > 8) {
         ballTrailRef.current.shift();
@@ -107,13 +113,20 @@ const SpectatorView: FC = () => {
 
     ballTrailRef.current = ballTrailRef.current.filter(t => t.alpha > 0.1);
 
-    ctx.fillStyle = 'rgb(253,208,64)';
-    ctx.shadowColor = 'rgba(253, 208, 64, 0.8)';
-    ctx.shadowBlur = ballSpeed > 3 ? 15 : 10;
-    ctx.beginPath();
-    ctx.arc(ballCenterX, ballCenterY, ballSize / 2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.shadowBlur = 0;
+    balls.forEach((ball, idx) => {
+      const ballX = (ball.x + 1) * width / 2 - ballSize / 2;
+      const ballY = (ball.y + 1) * height / 2 - ballSize / 2;
+      const ballCenterX = ballX + ballSize / 2;
+      const ballCenterY = ballY + ballSize / 2;
+
+      ctx.fillStyle = idx === 0 ? 'rgb(253,208,64)' : 'rgba(253,208,64,0.7)';
+      ctx.shadowColor = 'rgba(253, 208, 64, 0.8)';
+      ctx.shadowBlur = idx === 0 && ballSpeed > 3 ? 15 : 8;
+      ctx.beginPath();
+      ctx.arc(ballCenterX, ballCenterY, ballSize / 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    });
   }, [gameData, isConnected]);
 
   const handleLeaveSpectate = useCallback(() => {
@@ -146,11 +159,27 @@ const SpectatorView: FC = () => {
 
     socket.on('spectateStart', (data: GameData) => {
       setIsConnected(true);
-      setGameData(data);
+      const extras = (data.extraBalls ?? []).map((ball: any) =>
+        typeof ball?.x === 'number' && typeof ball?.y === 'number'
+          ? { x: ball.x, y: ball.y }
+          : {
+              x: typeof ball?.pos?.x === 'number' ? ball.pos.x : 0,
+              y: typeof ball?.pos?.y === 'number' ? ball.pos.y : 0,
+            }
+      );
+      setGameData({ ...data, extraBalls: extras });
     });
 
     socket.on('gameUpdate', (data: GameData) => {
-      setGameData(data);
+      const extras = (data.extraBalls ?? []).map((ball: any) =>
+        typeof ball?.x === 'number' && typeof ball?.y === 'number'
+          ? { x: ball.x, y: ball.y }
+          : {
+              x: typeof ball?.pos?.x === 'number' ? ball.pos.x : 0,
+              y: typeof ball?.pos?.y === 'number' ? ball.pos.y : 0,
+            }
+      );
+      setGameData({ ...data, extraBalls: extras });
     });
 
     socket.on('spectatorUpdate', (data: { count: number }) => {

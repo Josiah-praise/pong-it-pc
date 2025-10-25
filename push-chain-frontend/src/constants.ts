@@ -13,10 +13,37 @@ export const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost
 
 // Contract address
 export const PONG_ESCROW_ADDRESS = import.meta.env.VITE_PONG_ESCROW_ADDRESS as `0x${string}`
+export const PONG_POWERUPS_ADDRESS = import.meta.env.VITE_PONG_POWERUPS_ADDRESS as `0x${string}`
 
 // Validate that contract address is set
 if (!PONG_ESCROW_ADDRESS || PONG_ESCROW_ADDRESS === 'undefined') {
 }
+
+export const POWER_UP_METADATA = {
+  1: {
+    id: 1,
+    key: 'speed',
+    name: 'Speed Surge',
+    description: 'Temporary paddle acceleration for clutch saves',
+    icon: '⚡'
+  },
+  2: {
+    id: 2,
+    key: 'shield',
+    name: 'Guardian Shield',
+    description: 'Summons an energy barrier that blocks one goal',
+    icon: '🛡️'
+  },
+  3: {
+    id: 3,
+    key: 'multiball',
+    name: 'Multiball Mayhem',
+    description: 'Splits the ball for a burst of chaotic offense',
+    icon: '💥'
+  }
+} as const
+
+export const POWER_UP_IDS = Object.keys(POWER_UP_METADATA).map(Number)
 
 // Preset stake amounts (in PC/ETH)
 export const STAKE_AMOUNTS = [
@@ -60,4 +87,3 @@ export const PUSH_CHAIN_TESTNET = {
 
 // Push Chain Testnet Explorer URL
 export const PUSH_CHAIN_TESTNET_EXPLORER = 'https://donut.push.network'
-

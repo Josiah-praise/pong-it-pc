@@ -25,6 +25,68 @@
   color: #DA76EC;
 }
 
+.powerup-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  font-family: 'Press Start 2P', monospace;
+}
+
+.powerup-buttons {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.powerup-status-line {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+  min-height: 1.2rem;
+}
+
+.powerup-btn {
+  background: rgba(218, 118, 236, 0.2);
+  border: 2px solid #DA76EC;
+  color: #DA76EC;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  transition: all 0.2s ease;
+}
+
+.powerup-btn:hover:not(:disabled) {
+  background: rgba(218, 118, 236, 0.35);
+  box-shadow: 0 0 12px rgba(218, 118, 236, 0.4);
+}
+
+.powerup-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.powerup-status {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.powerup-status.active {
+  color: #fdd040;
+}
+
+.powerup-status.opponent {
+  color: #ff6b6b;
+}
+
+.powerup-status.info {
+  color: rgba(255, 255, 255, 0.6);
+}
+
 canvas {
   border: 2px solid #DA76EC;
   background-color: #000;
@@ -157,6 +219,25 @@ dialog button:hover {
     margin: 0.5rem;
   }
 
+  .powerup-bar {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .powerup-buttons {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .powerup-status-line {
+    gap: 0.5rem;
+  }
+
+  .powerup-btn {
+    font-size: 0.65rem;
+    padding: 0.5rem 0.9rem;
+  }
+
   .music-controls {
     bottom: 10px;
   }
@@ -184,7 +265,8 @@ dialog button:hover {
   }
 
   .room-info {
-    top: 90px;
+    top: 55px;
+    right: 20px;
   }
 
   .room-code-display {
@@ -211,6 +293,19 @@ dialog button:hover {
   .score-board {
     font-size: 1.2rem;
     gap: 1.5rem;
+  }
+
+  .powerup-buttons {
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .powerup-status-line {
+    gap: 0.4rem;
+  }
+  .room-info {
+    top: 50px;
+    right: 16px;
   }
 
   .back-button {
@@ -722,9 +817,8 @@ body .endgame-container > *,
 /* Room code display */
 .room-info {
   position: absolute;
-  top: 120px;
-  left: 50%;
-  transform: translateX(-50%);
+  top: 60px;
+  right: 30px;
   z-index: 10;
 }
 

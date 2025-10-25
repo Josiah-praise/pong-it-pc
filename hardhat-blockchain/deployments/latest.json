@@ -1,0 +1,19 @@
+{
+  "network": "pushTestnet",
+  "chainId": 42101,
+  "timestamp": "2025-10-25T00:56:16.194Z",
+  "deployer": "0xa5526DF9eB2016D3624B4DC36a91608797B5b6d5",
+  "contracts": {
+    "PongEscrow": {
+      "address": "0xFcCB88a90E9F3e8eB9E1627Bf0c64E379558cDbb",
+      "backendOracle": "0xa5526DF9eB2016D3624B4DC36a91608797B5b6d5"
+    },
+    "PongPowerUps": {
+      "address": "0xD8eCe897b9D482a68F7B564e349422584705ABB3",
+      "baseURI": "https://pong-it-pc.vercel.app/metadata/{id}.json",
+      "admin": "0xa5526DF9eB2016D3624B4DC36a91608797B5b6d5",
+      "minter": "0xa5526DF9eB2016D3624B4DC36a91608797B5b6d5",
+      "gameOperator": "0xa5526DF9eB2016D3624B4DC36a91608797B5b6d5"
+    }
+  }
+}

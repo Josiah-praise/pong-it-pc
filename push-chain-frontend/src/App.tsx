@@ -8,6 +8,7 @@ import GameOver from './components/GameOver'
 import MyWins from './components/MyWins'
 import GameHistory from './components/GameHistory'
 import UnclaimedStakes from './components/UnclaimedStakes'
+import PowerUpDashboard from './components/PowerUps/PowerUpDashboard'
 import SpeakerIcon from './components/SpeakerIcon'
 import './styles/App.css'
 import { STORAGE_KEY } from './constants'
@@ -173,6 +174,10 @@ function App() {
         <Route
           path="/unclaimed-stakes"
           element={<UnclaimedStakes />}
+        />
+        <Route
+          path="/powerups"
+          element={<PowerUpDashboard walletAddress={walletAddress} />}
         />
       </Routes>
       

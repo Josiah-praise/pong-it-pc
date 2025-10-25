@@ -2,7 +2,9 @@ const RoomManager = require('./roomManager');
 const GameManager = require('./gameManager');
 const LeaderboardManager = require('./leaderboardManager');
 const Game = require('./models/Game');
+const Player = require('./models/Player');
 const signatureService = require('./services/signatureService');
+const powerUpService = require('./services/powerUpService');
 
 class MultiplayerHandler {
   constructor(io) {
@@ -12,6 +14,7 @@ class MultiplayerHandler {
     this.leaderboardManager = new LeaderboardManager();
     this.gameLoops = new Map();
     this.gameOverPlayers = new Map(); // Track players in game-over state: username -> socketId
+    this.powerUpTimers = new Map();
 
     setInterval(() => {
       this.roomManager.cleanupStaleRooms();
@@ -20,6 +23,11 @@ class MultiplayerHandler {
 
   handleConnection(socket) {
     const username = socket.handshake.query.username;
+    const rawWallet = socket.handshake.query.walletAddress;
+    const walletAddress = Array.isArray(rawWallet) ? rawWallet[0] : rawWallet;
+    const normalizedWallet =
+      typeof walletAddress === 'string' ? walletAddress.toLowerCase() : null;
+    socket.data.walletAddress = normalizedWallet;
 
     socket.on('createRoom', (player, roomCode) => {
       this.handleCreateRoom(socket, player, roomCode);
@@ -68,6 +76,17 @@ class MultiplayerHandler {
 
     socket.on('rematchResponse', (data) => {
       this.handleRematchResponse(socket, data);
+    });
+
+    socket.on('activatePowerUp', (data, callback) => {
+      this.handleActivatePowerUp(socket, data)
+        .then((result) => callback && callback({ success: true, result }))
+        .catch((error) => {
+          console.error('Power-up activation failed:', error);
+          if (callback) {
+            callback({ success: false, error: error.message || 'ACTIVATION_FAILED' });
+          }
+        });
     });
 
     socket.on('leaveRoom', () => {
@@ -137,7 +156,10 @@ class MultiplayerHandler {
 
   async handleCreateRoom(socket, player, providedRoomCode) {
     console.log(`\n🏗️  ========== CREATE ROOM ==========`);
-    console.log(`👤 Player: ${player.name}`);
+    const normalizedWallet =
+      player?.walletAddress?.toLowerCase() || socket.data.walletAddress || null;
+    const playerWithWallet = { ...player, walletAddress: normalizedWallet };
+    console.log(`👤 Player: ${playerWithWallet.name}`);
     console.log(`🔌 Socket: ${socket.id}`);
     console.log(`🎫 Provided Room Code: ${providedRoomCode || 'NONE (will generate)'}`);
     
@@ -149,13 +171,14 @@ class MultiplayerHandler {
     }
 
     // Use provided room code for staked matches, or generate new one
-    const roomCode = providedRoomCode || this.roomManager.createRoom(player, socket.id);
+    const roomCode =
+      providedRoomCode || this.roomManager.createRoom(playerWithWallet, socket.id);
     console.log(`🎫 Final Room Code: ${roomCode}`);
 
     // If room code was provided, create room with that specific code
     if (providedRoomCode) {
       console.log(`🔍 Provided room code detected - checking if this is a staked match...`);
-      this.roomManager.createRoomWithCode(roomCode, player, socket.id);
+      this.roomManager.createRoomWithCode(roomCode, playerWithWallet, socket.id);
       
       // Check if this is a staked game in the database
       try {
@@ -193,7 +216,7 @@ class MultiplayerHandler {
     const finalRoom = this.roomManager.getRoom(roomCode);
     console.log(`✅ Room created successfully:`, {
       code: roomCode,
-      host: player.name,
+      host: playerWithWallet.name,
       isStaked: finalRoom?.isStaked || false,
       hostStaked: finalRoom?.hostStaked || false
     });
@@ -206,7 +229,12 @@ class MultiplayerHandler {
   }
 
   async handleJoinRoom(socket, { roomCode, player }) {
-    console.log(`🔵 handleJoinRoom called - Room: ${roomCode}, Player: ${player?.name}, Socket: ${socket.id}`);
+    const normalizedWallet =
+      player?.walletAddress?.toLowerCase() || socket.data.walletAddress || null;
+    const playerWithWallet = { ...player, walletAddress: normalizedWallet };
+    console.log(
+      `🔵 handleJoinRoom called - Room: ${roomCode}, Player: ${playerWithWallet?.name}, Socket: ${socket.id}`
+    );
 
     const existingRoom = this.roomManager.getRoomByPlayer(socket.id);
     if (existingRoom) {
@@ -215,7 +243,7 @@ class MultiplayerHandler {
       return;
     }
 
-    const result = this.roomManager.joinRoom(roomCode, player, socket.id);
+    const result = this.roomManager.joinRoom(roomCode, playerWithWallet, socket.id);
 
     if (!result.success) {
       console.log(`❌ Failed to join room ${roomCode}: ${result.error}`);
@@ -223,7 +251,7 @@ class MultiplayerHandler {
       return;
     }
 
-    console.log(`✅ Player ${player?.name} joined room ${roomCode}`);
+    console.log(`✅ Player ${playerWithWallet?.name} joined room ${roomCode}`);
     socket.join(roomCode);
 
     // Check if this is a staked match
@@ -295,20 +323,25 @@ class MultiplayerHandler {
   }
 
   handleFindRandomMatch(socket, player) {
+    const normalizedWallet =
+      player?.walletAddress?.toLowerCase() || socket.data.walletAddress || null;
+    const playerWithWallet = { ...player, walletAddress: normalizedWallet };
+
     const existingRoom = this.roomManager.getRoomByPlayer(socket.id);
     if (existingRoom) {
       socket.emit('error', { message: 'Already in a room' });
       return;
     }
 
-    const availableRooms = Array.from(this.roomManager.rooms.values())
-      .filter(room => room.status === 'waiting' && !room.guest);
+    const availableRooms = Array.from(this.roomManager.rooms.values()).filter(
+      room => room.status === 'waiting' && !room.guest
+    );
 
     if (availableRooms.length > 0) {
       const room = availableRooms[0];
-      this.handleJoinRoom(socket, { roomCode: room.code, player });
+      this.handleJoinRoom(socket, { roomCode: room.code, player: playerWithWallet });
     } else {
-      const roomCode = this.roomManager.createRoom(player, socket.id);
+      const roomCode = this.roomManager.createRoom(playerWithWallet, socket.id);
       socket.join(roomCode);
       socket.emit('waitingForOpponent', { roomCode });
     }
@@ -361,6 +394,13 @@ class MultiplayerHandler {
       }
 
       this.io.to(roomCode).emit('gameUpdate', result);
+
+      const events = this.gameManager.consumeEvents(roomCode);
+      if (events && events.length) {
+        events.forEach(event => {
+          this.io.to(roomCode).emit('powerUpEvent', event);
+        });
+      }
     }, 1000 / 60);
 
     this.gameLoops.set(roomCode, interval);
@@ -384,6 +424,9 @@ class MultiplayerHandler {
     
     console.log(`👥 Winner: ${winner.name}, Loser: ${loser.name}`);
 
+    const winnerIndex = game.players[0].socketId === winner.socketId ? 0 : 1;
+    const winnerRole = winnerIndex === 0 ? 'player1' : 'player2';
+
     const ratingResult = await this.leaderboardManager.processGameResult(
       winner.name,
       loser.name
@@ -391,9 +434,6 @@ class MultiplayerHandler {
 
     // Save game result to database (both staked and casual games)
     try {
-      // Determine which player won (player1 or player2)
-      const winnerRole = game.players[0].socketId === winner.socketId ? 'player1' : 'player2';
-
       // Check if game record already exists
       let gameRecord = await Game.findOne({ roomCode });
 
@@ -413,6 +453,13 @@ class MultiplayerHandler {
         gameRecord.status = 'finished';
         gameRecord.endedAt = new Date();
         gameRecord.winnerAddress = winnerRole === 'player1' ? gameRecord.player1Address : gameRecord.player2Address;
+
+        if (!gameRecord.player1Address && game.players[0]?.walletAddress) {
+          gameRecord.player1Address = game.players[0].walletAddress?.toLowerCase();
+        }
+        if (!gameRecord.player2Address && game.players[1]?.walletAddress) {
+          gameRecord.player2Address = game.players[1].walletAddress?.toLowerCase();
+        }
 
         // Generate signature if staked and not already generated
         if (gameRecord.isStaked && gameRecord.winnerAddress && !gameRecord.winnerSignature) {
@@ -453,6 +500,8 @@ class MultiplayerHandler {
           winner: winnerRole,
           score: scoreObject,
           isStaked: false,
+          player1Address: game.players[0]?.walletAddress?.toLowerCase(),
+          player2Address: game.players[1]?.walletAddress?.toLowerCase(),
           status: 'finished',
           endedAt: new Date()
         });
@@ -480,9 +529,37 @@ class MultiplayerHandler {
       }
     }
 
+    let winnerWallet = game.players[winnerIndex]?.walletAddress;
+    if (!winnerWallet) {
+      try {
+        const winnerPlayer = await Player.findOne({ name: winner.name }).lean();
+        if (winnerPlayer?.walletAddress) {
+          winnerWallet = winnerPlayer.walletAddress.toLowerCase();
+        }
+      } catch (error) {
+        console.error('Error fetching winner wallet address:', error);
+      }
+    }
+
+    if (winnerWallet) {
+      try {
+        await powerUpService.handleMatchWin({
+          walletAddress: winnerWallet,
+          isStaked,
+          roomCode,
+          score: game.score || [0, 0],
+        });
+      } catch (error) {
+        console.error('Error processing power-up rewards:', error);
+      }
+    } else {
+      console.warn(`⚠️  Winner wallet not available for room ${roomCode}, skipping power-up rewards`);
+    }
+
     const gameOverData = {
       winner: winner.socketId,
       winnerName: winner.name,
+      winnerWallet,
       isStaked,
       stakeAmount,
       roomCode,
@@ -523,6 +600,7 @@ class MultiplayerHandler {
     }
     
     this.endGame(roomCode, shouldPreserveRoom);
+    this.clearPowerUpTimers(roomCode);
   }
 
   handlePaddleMove(socket, { position }) {
@@ -553,6 +631,7 @@ class MultiplayerHandler {
     this.endGame(roomCode);
 
     this.roomManager.removePlayerFromRoom(socket.id);
+    this.clearPowerUpTimers(roomCode);
   }
 
   handleSpectateGame(socket, { roomCode, spectatorName }) {
@@ -588,6 +667,149 @@ class MultiplayerHandler {
         }
       }
     }
+  }
+
+  async handleActivatePowerUp(socket, { roomCode, type }) {
+    if (!roomCode || !type) {
+      throw new Error('INVALID_REQUEST');
+    }
+
+    const supportedTypes = ['speed', 'shield', 'multiball'];
+    if (!supportedTypes.includes(type)) {
+      throw new Error('POWERUP_NOT_SUPPORTED');
+    }
+
+    const game = this.gameManager.getGame(roomCode);
+    if (!game) {
+      throw new Error('GAME_NOT_FOUND');
+    }
+
+    const playerIndex = game.players.findIndex(p => p.socketId === socket.id);
+    if (playerIndex === -1) {
+      throw new Error('PLAYER_NOT_IN_GAME');
+    }
+
+    const player = game.players[playerIndex];
+    const walletAddress = player.walletAddress || socket.data.walletAddress;
+    if (!walletAddress) {
+      throw new Error('WALLET_NOT_LINKED');
+    }
+
+    const tokenId = powerUpService.getBoostIdByKey(type);
+    if (!tokenId) {
+      throw new Error('POWERUP_TOKEN_UNKNOWN');
+    }
+
+    if (type === 'shield' && this.gameManager.isShieldActive(roomCode, playerIndex)) {
+      throw new Error('SHIELD_ALREADY_ACTIVE');
+    }
+
+    const consumeResult = await powerUpService.consumeBoostForPlayer(walletAddress, tokenId);
+
+    if (type === 'speed') {
+      const multiplier = 1.5;
+      const durationMs = 15000;
+      const activated = this.gameManager.activateSpeedBoost(roomCode, playerIndex, multiplier, durationMs);
+      if (!activated) {
+        throw new Error('FAILED_TO_APPLY_EFFECT');
+      }
+
+      this.scheduleSpeedBoostTimeout(roomCode, playerIndex, durationMs);
+    socket.emit('powerUpSummary', consumeResult);
+
+    if (consumeResult.source === 'delegated' && consumeResult.ownerWallet) {
+      const ownerPlayer = game.players.find(
+        (p) => p.walletAddress && p.walletAddress.toLowerCase() === consumeResult.ownerWallet?.toLowerCase()
+      );
+      if (ownerPlayer?.socketId) {
+        try {
+          const ownerSummary = await powerUpService.getPlayerSummary(ownerPlayer.walletAddress);
+          const ownerSocket = this.io.sockets.sockets.get(ownerPlayer.socketId);
+          ownerSocket?.emit('powerUpSummary', {
+            summary: ownerSummary,
+            source: 'owner-update',
+          });
+        } catch (error) {
+          console.warn('⚠️  Failed to push owner summary update:', error);
+        }
+      }
+    }
+      this.io.to(roomCode).emit('powerUpActivated', {
+        type,
+        playerIndex,
+        playerName: player.name,
+        durationMs,
+      });
+      return { type, durationMs };
+    }
+
+    if (type === 'shield') {
+      const activated = this.gameManager.activateShield(roomCode, playerIndex);
+      if (!activated) {
+        throw new Error('SHIELD_ALREADY_ACTIVE');
+      }
+      socket.emit('powerUpSummary', summary);
+      this.io.to(roomCode).emit('powerUpActivated', {
+        type,
+        playerIndex,
+        playerName: player.name,
+      });
+      return { type };
+    }
+
+    if (type === 'multiball') {
+      const durationMs = 12000;
+      const activated = this.gameManager.activateMultiball(roomCode, playerIndex, durationMs);
+      if (!activated) {
+        throw new Error('FAILED_TO_APPLY_EFFECT');
+      }
+      socket.emit('powerUpSummary', summary);
+      this.io.to(roomCode).emit('powerUpActivated', {
+        type,
+        playerIndex,
+        playerName: player.name,
+        durationMs,
+      });
+      return { type, durationMs };
+    }
+
+    throw new Error('POWERUP_NOT_SUPPORTED');
+  }
+
+  scheduleSpeedBoostTimeout(roomCode, playerIndex, durationMs) {
+    const key = `${roomCode}:speed:${playerIndex}`;
+    if (this.powerUpTimers.has(key)) {
+      clearTimeout(this.powerUpTimers.get(key));
+    }
+    const timeout = setTimeout(() => {
+      this.handleSpeedBoostExpired(roomCode, playerIndex);
+    }, durationMs);
+    this.powerUpTimers.set(key, timeout);
+  }
+
+  handleSpeedBoostExpired(roomCode, playerIndex) {
+    const key = `${roomCode}:speed:${playerIndex}`;
+    if (this.powerUpTimers.has(key)) {
+      clearTimeout(this.powerUpTimers.get(key));
+      this.powerUpTimers.delete(key);
+    }
+    const cleared = this.gameManager.clearSpeedBoost(roomCode, playerIndex);
+    if (cleared) {
+      this.io.to(roomCode).emit('powerUpExpired', {
+        type: 'speed',
+        playerIndex,
+      });
+    }
+  }
+
+  clearPowerUpTimers(roomCode) {
+    for (const [key, timeout] of this.powerUpTimers.entries()) {
+      if (key.startsWith(`${roomCode}:`)) {
+        clearTimeout(timeout);
+        this.powerUpTimers.delete(key);
+      }
+    }
+    this.gameManager.clearAllPowerUps(roomCode);
   }
 
   handleLeaveRoomBeforeStaking(socket, roomCode) {

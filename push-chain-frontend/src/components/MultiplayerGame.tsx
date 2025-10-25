@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState, useCallback, type FC } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo, type FC } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { usePushWalletContext, usePushChainClient } from '@pushchain/ui-kit';
 import io, { Socket } from 'socket.io-client';
 import '../styles/Game.css';
-import { BACKEND_URL, INITIAL_RATING } from '../constants';
+import { BACKEND_URL, INITIAL_RATING, POWER_UP_METADATA } from '../constants';
 import soundManager from '../utils/soundManager';
 import { useStakeAsPlayer2 } from '../hooks/usePushContract';
 import { parseTransactionError } from '../utils/errorParser';
@@ -11,6 +11,7 @@ import { useDialog } from '../hooks/useDialog';
 import Dialog from './Dialog';
 import AddressDisplay from './AddressDisplay';
 import { type Player as AuthPlayer } from '../services/authService';
+import { getPowerUpSummary, type PowerUpSummary } from '../services/powerUpService';
 
 interface MultiplayerGameProps {
   username: string | null
@@ -22,6 +23,7 @@ interface Player {
   name: string
   rating: number
   socketId?: string
+  walletAddress?: string
 }
 
 interface GameData {
@@ -33,6 +35,7 @@ interface GameData {
   }
   players: Player[]
   ballVelocity?: { x: number; y: number }
+  extraBalls?: Array<{ x: number; y: number }>
 }
 
 interface StakingData {
@@ -51,15 +54,18 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username, walletAddress, au
   const isNavigatingToGameOver = useRef(false); // Track if navigating to game-over
   const [isWaiting, setIsWaiting] = useState(true);
   const [roomCode, setRoomCode] = useState<string | null>(null);
-  const [gameData, setGameData] = useState<GameData>({
+  const initialGameState: GameData = {
     score: [0, 0],
     ballPos: { x: 0, y: 0 },
     paddles: {
       player1: { y: 0 },
       player2: { y: 0 }
     },
-    players: []
-  });
+    players: [],
+    extraBalls: []
+  };
+  const [gameData, setGameData] = useState<GameData>(initialGameState);
+  const gameDataRef = useRef<GameData>(initialGameState);
   const [isPaused, setIsPaused] = useState(false);
   const [pausedBy, setPausedBy] = useState<string | null>(null);
   const [pausesRemaining, setPausesRemaining] = useState(1);
@@ -73,6 +79,14 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username, walletAddress, au
   const [stakingErrorMessage, setStakingErrorMessage] = useState<string | null>(null);
   const [isCursorHidden, setIsCursorHidden] = useState(false);
   const [isStakedGame, setIsStakedGame] = useState(false);
+  const [powerUpSummary, setPowerUpSummary] = useState<PowerUpSummary | null>(null);
+  const [isFetchingPowerUps, setIsFetchingPowerUps] = useState(false);
+  const [activeSpeedBoost, setActiveSpeedBoost] = useState<{ expiresAt: number; playerIndex: number } | null>(null);
+  const [activeShield, setActiveShield] = useState<{ playerIndex: number } | null>(null);
+  const [activeMultiball, setActiveMultiball] = useState<{ expiresAt: number; playerIndex: number } | null>(null);
+  const [powerUpMessage, setPowerUpMessage] = useState<string | null>(null);
+  const [shieldMessage, setShieldMessage] = useState<string | null>(null);
+  const [multiballMessage, setMultiballMessage] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -110,6 +124,54 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username, walletAddress, au
   const locationState = location.state as LocationState;
   const gameMode = locationState?.gameMode || 'quick';
   const joinRoomCode = locationState?.roomCode;
+  const delegatedByToken = useMemo(() => {
+    const delegations = powerUpSummary?.delegations?.asRenter ?? [];
+    const now = Date.now();
+    return delegations.reduce<Record<number, number>>((acc, record) => {
+      const tokenId = Number(record.tokenId ?? 0);
+      const remaining = Number(record.remaining ?? 0);
+      const expiresAt = record.expiresAt ? new Date(record.expiresAt).getTime() : null;
+
+      if (
+        record.status === 'active' &&
+        remaining > 0 &&
+        (!expiresAt || expiresAt > now)
+      ) {
+        acc[tokenId] = (acc[tokenId] || 0) + remaining;
+      }
+      return acc;
+    }, {});
+  }, [powerUpSummary]);
+
+  const getChargeAvailability = useCallback((tokenId: number) => {
+    const total = powerUpSummary?.balances?.[tokenId] ?? 0;
+    const locked = powerUpSummary?.locked?.[tokenId] ?? 0;
+    const owned = Math.max(total - locked, 0);
+    const delegated = delegatedByToken[tokenId] || 0;
+    return {
+      owned,
+      delegated,
+      total: owned + delegated,
+    };
+  }, [powerUpSummary, delegatedByToken]);
+
+  const speedAvailability = useMemo(() => getChargeAvailability(1), [getChargeAvailability]);
+  const shieldAvailability = useMemo(() => getChargeAvailability(2), [getChargeAvailability]);
+  const multiballAvailability = useMemo(() => getChargeAvailability(3), [getChargeAvailability]);
+
+  useEffect(() => {
+    gameDataRef.current = gameData;
+  }, [gameData]);
+
+  const playerIndex = useMemo(() => {
+    return gameData.players.findIndex(p => p.name === username);
+  }, [gameData.players, username]);
+  const isPlayer1 = playerIndex === 0;
+  const isPlayer2 = playerIndex === 1;
+  const playerIndexRef = useRef<number>(-1);
+  useEffect(() => {
+    playerIndexRef.current = playerIndex;
+  }, [playerIndex]);
 
   const drawGame = useCallback((ctx: CanvasRenderingContext2D) => {
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -147,16 +209,20 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username, walletAddress, au
     });
 
     const ballSize = width * 0.02;
-    const ballX = (gameData.ballPos.x + 1) * width / 2 - ballSize / 2;
-    const ballY = (gameData.ballPos.y + 1) * height / 2 - ballSize / 2;
-    const ballCenterX = ballX + ballSize / 2;
-    const ballCenterY = ballY + ballSize / 2;
+    const ballsToDraw = [{ x: gameData.ballPos.x, y: gameData.ballPos.y }];
+    if (gameData.extraBalls?.length) {
+      ballsToDraw.push(...gameData.extraBalls);
+    }
 
-    const ballSpeed = Math.sqrt(
+    const mainBallVelocity = Math.sqrt(
       (gameData.ballVelocity?.x || 0) ** 2 + (gameData.ballVelocity?.y || 0) ** 2
     );
-    
-    if (ballSpeed > 2.5) {
+
+    if (mainBallVelocity > 2.5) {
+      const ballX = (gameData.ballPos.x + 1) * width / 2 - ballSize / 2;
+      const ballY = (gameData.ballPos.y + 1) * height / 2 - ballSize / 2;
+      const ballCenterX = ballX + ballSize / 2;
+      const ballCenterY = ballY + ballSize / 2;
       ballTrailRef.current.push({ x: ballCenterX, y: ballCenterY, alpha: 0.6 });
       if (ballTrailRef.current.length > 8) {
         ballTrailRef.current.shift();
@@ -174,13 +240,20 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username, walletAddress, au
 
     ballTrailRef.current = ballTrailRef.current.filter(t => t.alpha > 0.1);
 
-    ctx.fillStyle = 'rgb(253,208,64)';
-    ctx.shadowColor = 'rgba(253, 208, 64, 0.8)';
-    ctx.shadowBlur = ballSpeed > 3 ? 15 : 10;
-    ctx.beginPath();
-    ctx.arc(ballCenterX, ballCenterY, ballSize / 2, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.shadowBlur = 0;
+    ballsToDraw.forEach((ball, index) => {
+      const ballX = (ball.x + 1) * width / 2 - ballSize / 2;
+      const ballY = (ball.y + 1) * height / 2 - ballSize / 2;
+      const ballCenterX = ballX + ballSize / 2;
+      const ballCenterY = ballY + ballSize / 2;
+
+      ctx.fillStyle = index === 0 ? 'rgb(253,208,64)' : 'rgba(253,208,64,0.7)';
+      ctx.shadowColor = 'rgba(253, 208, 64, 0.8)';
+      ctx.shadowBlur = index === 0 && mainBallVelocity > 3 ? 15 : 8;
+      ctx.beginPath();
+      ctx.arc(ballCenterX, ballCenterY, ballSize / 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    });
   }, [gameData, isWaiting, roomCode]);
 
   // Cursor auto-hide management
@@ -356,6 +429,124 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username, walletAddress, au
     }
   }, [isConnected, stakingData, stakeAsPlayer2, showAlert]);
 
+  const showInfoToast = useCallback((_title?: string, _message?: string) => {
+    // Intentionally left blank to keep gameplay uninterrupted.
+  }, []);
+
+  const showSuccessToast = useCallback((_title?: string, _message?: string) => {
+    // Intentionally left blank to keep gameplay uninterrupted.
+  }, []);
+
+  const handleActivateSpeedBoost = useCallback(() => {
+    if (!socketRef.current || !roomCode) {
+      setPowerUpMessage('Unable to activate power-up right now.');
+      return;
+    }
+
+    const hasActiveBoost = activeSpeedBoost && activeSpeedBoost.expiresAt > Date.now();
+    if (hasActiveBoost || speedAvailability.total <= 0 || isFetchingPowerUps) {
+      return;
+    }
+
+    setPowerUpMessage(null);
+    socketRef.current.emit('activatePowerUp', { roomCode, type: 'speed' }, (response: any) => {
+      if (!response?.success) {
+        const message = response?.error === 'POWERUP_NOT_SUPPORTED'
+          ? 'This power-up is not supported yet.'
+          : response?.error === 'POWERUP_SERVICE_NOT_READY'
+            ? 'Power-up service is not ready. Please try again later.'
+            : response?.error === 'FAILED_TO_APPLY_EFFECT'
+              ? 'Could not apply the power-up effect.'
+              : response?.error === 'INVALID_WALLET'
+                ? 'Wallet not linked to this match.'
+                : response?.error || 'Failed to activate power-up.';
+        setPowerUpMessage(message);
+      }
+    });
+  }, [roomCode, activeSpeedBoost, speedAvailability.total, isFetchingPowerUps]);
+
+  const handleActivateShield = useCallback(() => {
+    if (!socketRef.current || !roomCode) {
+      setShieldMessage('Unable to activate power-up right now.');
+      return;
+    }
+
+    const myShieldActive = activeShield && activeShield.playerIndex === playerIndex;
+    if (myShieldActive || shieldAvailability.total <= 0 || isFetchingPowerUps) {
+      return;
+    }
+
+    setShieldMessage(null);
+    socketRef.current.emit('activatePowerUp', { roomCode, type: 'shield' }, (response: any) => {
+      if (!response?.success) {
+        const message = response?.error === 'SHIELD_ALREADY_ACTIVE'
+          ? 'Shield already active.'
+          : response?.error === 'POWERUP_SERVICE_NOT_READY'
+            ? 'Power-up service is not ready. Please try again later.'
+            : response?.error === 'INVALID_WALLET'
+              ? 'Wallet not linked to this match.'
+              : response?.error || 'Failed to activate shield.';
+        setShieldMessage(message);
+      }
+    });
+  }, [roomCode, activeShield, shieldAvailability.total, isFetchingPowerUps, playerIndex]);
+
+  const handleActivateMultiball = useCallback(() => {
+    if (!socketRef.current || !roomCode) {
+      setMultiballMessage('Unable to activate power-up right now.');
+      return;
+    }
+
+    const multiballActive = !!activeMultiball && activeMultiball.expiresAt > Date.now();
+    if (multiballActive || multiballAvailability.total <= 0 || isFetchingPowerUps) {
+      return;
+    }
+
+    setMultiballMessage(null);
+    socketRef.current.emit('activatePowerUp', { roomCode, type: 'multiball' }, (response: any) => {
+      if (!response?.success) {
+        const message = response?.error === 'POWERUP_SERVICE_NOT_READY'
+          ? 'Power-up service is not ready. Please try again later.'
+          : response?.error === 'INVALID_WALLET'
+            ? 'Wallet not linked to this match.'
+            : response?.error === 'FAILED_TO_APPLY_EFFECT'
+              ? 'Could not activate multiball.'
+              : response?.error || 'Failed to activate multiball.';
+        setMultiballMessage(message);
+      }
+    });
+  }, [roomCode, activeMultiball, multiballAvailability.total, isFetchingPowerUps]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const fetchSummary = async () => {
+      if (!walletAddress) {
+        setPowerUpSummary(null);
+        return;
+      }
+      try {
+        setIsFetchingPowerUps(true);
+        const summary = await getPowerUpSummary(walletAddress);
+        if (mounted) {
+          setPowerUpSummary(summary);
+        }
+      } catch (error) {
+        console.error('Failed to fetch power-up summary:', error);
+      } finally {
+        if (mounted) {
+          setIsFetchingPowerUps(false);
+        }
+      }
+    };
+
+    fetchSummary();
+
+    return () => {
+      mounted = false;
+    };
+  }, [walletAddress]);
+
   // Handle successful Player2 staking transaction
   useEffect(() => {
 
@@ -421,7 +612,8 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username, walletAddress, au
       const playerData: Player = {
         name: username,
         rating: authenticatedPlayer?.rating || INITIAL_RATING,
-        socketId: socket.id
+        socketId: socket.id,
+        walletAddress: walletAddress || undefined
       };
 
       if (gameMode === 'create' || gameMode === 'create-staked') {
@@ -449,6 +641,9 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username, walletAddress, au
     });
 
     socket.on('roomReady', (data: any) => {
+      if (data?.room?.code) {
+        setRoomCode(data.room.code);
+      }
       setIsWaiting(true);
     });
 
@@ -458,13 +653,121 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username, walletAddress, au
     });
 
     socket.on('waitingForPlayer2Stake', (data: any) => {
+      if (data?.roomCode) {
+        setRoomCode(data.roomCode);
+      }
       setIsWaiting(true);
     });
 
-    socket.on('gameStart', (data: GameData) => {
+    socket.on('powerUpSummary', (payload: { summary?: PowerUpSummary; source?: string; ownerWallet?: string } | PowerUpSummary) => {
+      const summary = 'summary' in payload ? payload.summary : payload;
+      if (summary) {
+        setPowerUpSummary(summary);
+      }
+
+      if (typeof payload === 'object' && 'source' in payload) {
+        if (payload.source === 'delegated') {
+          const ownerLabel = payload.ownerWallet
+            ? `${payload.ownerWallet.slice(0, 6)}...${payload.ownerWallet.slice(-4)}`
+            : 'lender';
+          setPowerUpMessage(`Borrowed boost consumed (from ${ownerLabel})`);
+        } else if (payload.source === 'owned') {
+          setPowerUpMessage(null);
+        }
+
+        if (payload.source !== 'owner-update') {
+          setShieldMessage(null);
+          setMultiballMessage(null);
+        }
+      } else {
+        setPowerUpMessage(null);
+        setShieldMessage(null);
+        setMultiballMessage(null);
+      }
+    });
+
+    socket.on('powerUpActivated', (payload: { type: string; playerIndex: number; playerName: string; durationMs?: number }) => {
+      if (!payload) return;
+      if (payload.type === 'speed') {
+        const expiresAt = Date.now() + (payload.durationMs || 0);
+        setActiveSpeedBoost({ expiresAt, playerIndex: payload.playerIndex });
+        setPowerUpMessage(null);
+        return;
+      }
+      if (payload.type === 'shield') {
+        setActiveShield({ playerIndex: payload.playerIndex });
+        setShieldMessage(null);
+        return;
+      }
+      if (payload.type === 'multiball') {
+        const expiresAt = payload.durationMs ? Date.now() + payload.durationMs : Date.now() + 12000;
+        setActiveMultiball({ expiresAt, playerIndex: payload.playerIndex });
+        const ownerName = gameDataRef.current?.players?.[payload.playerIndex]?.name || 'Player';
+        const isMine = payload.playerIndex === playerIndexRef.current;
+        setMultiballMessage(isMine ? 'Multiball unleashed!' : `${ownerName} unleashed multiball!`);
+        return;
+      }
+    });
+
+    socket.on('powerUpExpired', (payload: { type: string; playerIndex: number }) => {
+      if (!payload || payload.type !== 'speed') return;
+      setActiveSpeedBoost(null);
+      setPowerUpMessage(null);
+    });
+
+    socket.on('powerUpEvent', (event: { type: string; playerIndex: number }) => {
+      if (!event) return;
+      if (event.type === 'shield-block') {
+        setActiveShield(prev => (prev && prev.playerIndex === event.playerIndex ? null : prev));
+        const currentGame = gameDataRef.current;
+        const isMine = event.playerIndex === playerIndexRef.current;
+        const name = currentGame?.players?.[event.playerIndex]?.name || 'Opponent';
+        setShieldMessage(isMine ? 'Guardian Shield absorbed the shot!' : `${name}'s shield absorbed the shot!`);
+        return;
+      }
+      if (event.type === 'multiball-spawn') {
+        const currentGame = gameDataRef.current;
+        const name = currentGame?.players?.[event.playerIndex ?? -1]?.name || 'Player';
+        const isMine = event.playerIndex === playerIndexRef.current;
+        setMultiballMessage(isMine ? 'Multiball active!' : `${name} triggered Multiball!`);
+        return;
+      }
+      if (event.type === 'multiball-end') {
+        setActiveMultiball(null);
+        const currentGame = gameDataRef.current;
+        const name = typeof event.playerIndex === 'number'
+          ? currentGame?.players?.[event.playerIndex]?.name || 'Player'
+          : 'A player';
+        if (typeof event.playerIndex === 'number') {
+          const isMine = event.playerIndex === playerIndexRef.current;
+          setMultiballMessage(isMine ? 'Your multiball ended' : `${name}'s multiball ended`);
+        } else {
+          setMultiballMessage('Multiball ended');
+        }
+      }
+    });
+
+    socket.on('gameStart', (data: GameData & { roomCode?: string }) => {
       setIsWaiting(false);
-      setGameData(data);
-      prevGameDataRef.current = data;
+      setActiveSpeedBoost(null);
+      setActiveShield(null);
+      setPowerUpMessage(null);
+      setShieldMessage(null);
+      if (data?.roomCode) {
+        setRoomCode(prev => prev || data.roomCode || null);
+      }
+    const normalizedExtras = (data.extraBalls ?? []).map((ball: any) =>
+      typeof ball?.x === 'number' && typeof ball?.y === 'number'
+        ? { x: ball.x, y: ball.y }
+        : {
+            x: typeof ball?.pos?.x === 'number' ? ball.pos.x : 0,
+            y: typeof ball?.pos?.y === 'number' ? ball.pos.y : 0,
+          }
+    );
+    const next = { ...data, extraBalls: normalizedExtras };
+      setGameData(next);
+      gameDataRef.current = next;
+      prevGameDataRef.current = next;
       soundManager.startBackgroundMusic();
     });
 
@@ -487,8 +790,18 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username, walletAddress, au
         }
       }
 
-      setGameData(data);
-      prevGameDataRef.current = data;
+      const normalizedExtras = (data.extraBalls ?? []).map((ball: any) =>
+        typeof ball?.x === 'number' && typeof ball?.y === 'number'
+          ? { x: ball.x, y: ball.y }
+          : {
+              x: typeof ball?.pos?.x === 'number' ? ball.pos.x : 0,
+              y: typeof ball?.pos?.y === 'number' ? ball.pos.y : 0,
+            }
+      );
+      const next = { ...data, extraBalls: normalizedExtras };
+      gameDataRef.current = next;
+      setGameData(next);
+      prevGameDataRef.current = next;
     });
 
     socket.on('gameOver', (result: any) => {
@@ -501,6 +814,11 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username, walletAddress, au
       );
 
       const isWinner = result.winner === socket.id;
+
+      setActiveSpeedBoost(null);
+      setActiveShield(null);
+      setPowerUpMessage(null);
+      setShieldMessage(null);
 
       // Don't disconnect socket on game over - keep it alive for rematch
       // The GameOver component will create its own socket for game-over state
@@ -606,7 +924,7 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username, walletAddress, au
       socket.removeAllListeners();
       socket.disconnect();
     };
-  }, [username, gameMode, joinRoomCode, navigate, locationState?.roomCode]);
+  }, [username, gameMode, joinRoomCode, navigate, locationState?.roomCode, walletAddress, authenticatedPlayer?.rating, showAlert, showInfoToast, showSuccessToast]);
 
   useEffect(() => {
     isMounted.current = true;
@@ -639,6 +957,48 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username, walletAddress, au
 
     return () => clearTimeout(timer);
   }, [pauseCountdown]);
+
+  useEffect(() => {
+    if (!activeSpeedBoost) return;
+    const remaining = activeSpeedBoost.expiresAt - Date.now();
+    if (remaining <= 0) {
+      setActiveSpeedBoost(null);
+      return;
+    }
+    const timeout = setTimeout(() => {
+      setActiveSpeedBoost(null);
+    }, remaining);
+    return () => clearTimeout(timeout);
+  }, [activeSpeedBoost]);
+
+  useEffect(() => {
+    if (!activeMultiball) return;
+    const remaining = activeMultiball.expiresAt - Date.now();
+    if (remaining <= 0) {
+      setActiveMultiball(null);
+      return;
+    }
+    const timeout = setTimeout(() => {
+      setActiveMultiball(null);
+    }, remaining);
+    return () => clearTimeout(timeout);
+  }, [activeMultiball]);
+
+  useEffect(() => {
+    if (!shieldMessage) return;
+    const timeout = setTimeout(() => {
+      setShieldMessage(null);
+    }, 4000);
+    return () => clearTimeout(timeout);
+  }, [shieldMessage]);
+
+  useEffect(() => {
+    if (!multiballMessage) return;
+    const timeout = setTimeout(() => {
+      setMultiballMessage(null);
+    }, 4000);
+    return () => clearTimeout(timeout);
+  }, [multiballMessage]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -767,16 +1127,14 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username, walletAddress, au
     }
   }, [isStakedGame, gameData.players, isWaiting, roomCode, navigate, showConfirm]);
 
-  const playerIndex = gameData.players.findIndex(p => p.name === username);
-  const isPlayer1 = playerIndex === 0;
-  const isPlayer2 = playerIndex === 1;
-
-  const showInfoToast = useCallback((title: string, message: string) => {
-    // Info toasts should not block gameplay (no modal overlay)
-  }, [showAlert]);
-
-  const showSuccessToast = useCallback((title: string, message: string) => {
-  }, [showAlert]);
+  const speedBoostMeta = POWER_UP_METADATA[1];
+  const shieldMeta = POWER_UP_METADATA[2];
+  const multiballMeta = POWER_UP_METADATA[3];
+  const boostActive = activeSpeedBoost && activeSpeedBoost.expiresAt > Date.now();
+  const isMySpeedBoostActive = boostActive && activeSpeedBoost?.playerIndex === playerIndex;
+  const opponentSpeedBoostActive = boostActive && activeSpeedBoost?.playerIndex !== playerIndex;
+  const speedBoostCountdown = boostActive ? Math.max(0, Math.ceil((activeSpeedBoost!.expiresAt - Date.now()) / 1000)) : 0;
+  const activeSpeedOwnerName = boostActive ? gameData.players[activeSpeedBoost!.playerIndex]?.name : null;
 
   return (
     <div className="game-container" ref={containerRef} style={{ touchAction: 'none' }}>
@@ -797,12 +1155,6 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username, walletAddress, au
         </>
       )}
 
-      {roomCode && (
-        <div className="room-info">
-          <span className="room-code-display">Room: {roomCode}</span>
-        </div>
-      )}
-
       <div className="player-names">
         <span>{gameData.players[0]?.name || 'Player 1'}</span>
         <span>{gameData.players[1]?.name || 'Player 2'}</span>
@@ -811,6 +1163,87 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username, walletAddress, au
       <div className="score-board">
         <span>{gameData.score[0]}</span>
         <span>{gameData.score[1]}</span>
+      </div>
+
+      {roomCode && (
+        <div className="room-info">
+          <span className="room-code-display">Room: {roomCode}</span>
+        </div>
+      )}
+
+      <div className="powerup-bar">
+        <div className="powerup-buttons">
+          <button
+            className="powerup-btn"
+            onClick={handleActivateSpeedBoost}
+            disabled={speedAvailability.total <= 0 || boostActive || isFetchingPowerUps}
+          >
+            {`⚡ ${speedBoostMeta.name} (${speedAvailability.total})`}
+          </button>
+          <button
+            className="powerup-btn"
+            onClick={handleActivateShield}
+            disabled={shieldAvailability.total <= 0 || (activeShield && activeShield.playerIndex === playerIndex) || isFetchingPowerUps}
+          >
+            {`🛡 ${shieldMeta.name} (${shieldAvailability.total})`}
+          </button>
+          <button
+            className="powerup-btn"
+            onClick={handleActivateMultiball}
+            disabled={multiballAvailability.total <= 0 || (activeMultiball && activeMultiball.expiresAt > Date.now()) || isFetchingPowerUps}
+          >
+            {`💥 ${multiballMeta.name} (${multiballAvailability.total})`}
+          </button>
+        </div>
+        <div className="powerup-status-line">
+          {isFetchingPowerUps && (
+            <span className="powerup-status info">Updating inventory…</span>
+          )}
+          {isMySpeedBoostActive && (
+            <span className="powerup-status active">
+              {speedBoostMeta.name} active · {speedBoostCountdown}s
+            </span>
+          )}
+          {!isMySpeedBoostActive && opponentSpeedBoostActive && (
+            <span className="powerup-status opponent">
+              {activeSpeedOwnerName || 'Opponent'} activated {speedBoostMeta.name}!
+            </span>
+          )}
+          {activeShield && activeShield.playerIndex === playerIndex && (
+            <span className="powerup-status active">Guardian Shield armed</span>
+          )}
+          {activeShield && activeShield.playerIndex !== playerIndex && (
+            <span className="powerup-status opponent">
+              {(gameData.players[activeShield.playerIndex]?.name || 'Opponent')} armed Guardian Shield
+            </span>
+          )}
+          {activeMultiball && activeMultiball.playerIndex === playerIndex && (
+            <span className="powerup-status active">Multiball active</span>
+          )}
+          {activeMultiball && activeMultiball.playerIndex !== playerIndex && (
+            <span className="powerup-status opponent">
+              {(gameData.players[activeMultiball.playerIndex]?.name || 'Opponent')} active Multiball
+            </span>
+          )}
+          {speedAvailability.delegated > 0 && (
+            <span className="powerup-status info">Borrowed ⚡: {speedAvailability.delegated}</span>
+          )}
+          {shieldAvailability.delegated > 0 && (
+            <span className="powerup-status info">Borrowed 🛡: {shieldAvailability.delegated}</span>
+          )}
+          {multiballAvailability.delegated > 0 && (
+            <span className="powerup-status info">Borrowed 💥: {multiballAvailability.delegated}</span>
+          )}
+          {!boostActive && powerUpMessage && (
+            <span className="powerup-status opponent">{powerUpMessage}</span>
+          )}
+          {shieldMessage && (
+            <span className="powerup-status info">{shieldMessage}</span>
+          )}
+          {multiballMessage && (
+            <span className="powerup-status info">{multiballMessage}</span>
+          )}
+        </div>
       </div>
 
       {!isWaiting && (

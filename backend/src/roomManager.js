@@ -1,3 +1,6 @@
+const normalizeWallet = (value) =>
+  typeof value === 'string' ? value.toLowerCase() : undefined;
+
 class RoomManager {
   constructor() {
     this.rooms = new Map();
@@ -24,6 +27,7 @@ class RoomManager {
       code: roomCode,
       host: {
         ...hostPlayer,
+        walletAddress: normalizeWallet(hostPlayer.walletAddress),
         socketId: hostSocketId
       },
       guest: null,
@@ -49,6 +53,7 @@ class RoomManager {
       code: roomCode,
       host: {
         ...hostPlayer,
+        walletAddress: normalizeWallet(hostPlayer.walletAddress),
         socketId: hostSocketId
       },
       guest: null,
@@ -82,6 +87,7 @@ class RoomManager {
 
     room.guest = {
       ...guestPlayer,
+      walletAddress: normalizeWallet(guestPlayer.walletAddress),
       socketId: guestSocketId
     };
     room.status = 'ready';

@@ -609,6 +609,11 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet,
             )}
           </button>
         )}
+        {isConnected && (
+          <button onClick={() => navigate('/powerups')} className="powerups-btn">
+            🎁 Power-Ups
+          </button>
+        )}
       </div>
 
       <div className={`title-container ${showTitle ? 'show' : ''}`}>

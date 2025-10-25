@@ -10,6 +10,7 @@ const MultiplayerHandler = require('./multiplayerHandler');
 const Player = require('./models/Player');
 const Game = require('./models/Game');
 const signatureService = require('./services/signatureService');
+const powerUpService = require('./services/powerUpService');
 
 const app = express();
 
@@ -358,6 +359,116 @@ app.patch('/players/:name/rating', async (req, res) => {
   } catch (error) {
     console.error('Error updating player rating:', error);
     res.status(500).json({ error: 'Failed to update player rating' });
+  }
+});
+
+// ============ POWER-UP ENDPOINTS ============
+
+app.get('/powerups/summary/:walletAddress', async (req, res) => {
+  try {
+    const { walletAddress } = req.params;
+    if (!walletAddress) {
+      return res.status(400).json({ error: 'Wallet address is required' });
+    }
+
+    const summary = await powerUpService.getPlayerSummary(walletAddress);
+    res.status(200).json(summary);
+  } catch (error) {
+    console.error('Error fetching power-up summary:', error);
+    res.status(500).json({ error: 'Failed to fetch power-up summary' });
+  }
+});
+
+app.post('/powerups/crate/open', async (req, res) => {
+  try {
+    const { walletAddress } = req.body;
+    if (!walletAddress) {
+      return res.status(400).json({ error: 'Wallet address is required' });
+    }
+
+    const reveal = await powerUpService.revealCrate(walletAddress);
+    res.status(200).json(reveal);
+  } catch (error) {
+    if (error.message === 'NO_PENDING_CRATE') {
+      return res.status(404).json({ error: 'No pending crate' });
+    }
+    if (error.message === 'CRATE_EXPIRED') {
+      return res.status(410).json({ error: 'Crate expired' });
+    }
+    console.error('Error revealing crate:', error);
+    res.status(500).json({ error: 'Failed to reveal crate' });
+  }
+});
+
+app.post('/powerups/crate/consumed', async (req, res) => {
+  try {
+    const { walletAddress, txHash } = req.body;
+    if (!walletAddress) {
+      return res.status(400).json({ error: 'Wallet address is required' });
+    }
+
+    const state = await powerUpService.markCrateConsumed(walletAddress, txHash);
+    res.status(200).json(state);
+  } catch (error) {
+    console.error('Error marking crate consumed:', error);
+    res.status(500).json({ error: 'Failed to update crate state' });
+  }
+});
+
+app.get('/powerups/delegations/:walletAddress', async (req, res) => {
+  try {
+    const { walletAddress } = req.params;
+    if (!walletAddress) {
+      return res.status(400).json({ error: 'Wallet address is required' });
+    }
+
+    const delegations = await powerUpService.listDelegations(walletAddress);
+    res.status(200).json(delegations);
+  } catch (error) {
+    console.error('Error fetching delegations:', error);
+    res.status(500).json({ error: 'Failed to fetch delegations' });
+  }
+});
+
+app.post('/powerups/delegations', async (req, res) => {
+  try {
+    const { ownerWallet, renterWallet, tokenId, amount, txHash } = req.body;
+    if (!ownerWallet || !renterWallet || tokenId === undefined || amount === undefined) {
+      return res.status(400).json({ error: 'Missing delegation parameters' });
+    }
+
+    const record = await powerUpService.recordDelegation({
+      ownerWallet,
+      renterWallet,
+      tokenId,
+      amount,
+      txHash,
+    });
+    res.status(200).json(record);
+  } catch (error) {
+    if (error.message === 'INVALID_ADDRESSES') {
+      return res.status(400).json({ error: 'Invalid wallet addresses' });
+    }
+    console.error('Error recording delegation:', error);
+    res.status(500).json({ error: 'Failed to record delegation' });
+  }
+});
+
+app.post('/powerups/delegations/cancel', async (req, res) => {
+  try {
+    const { ownerWallet, renterWallet, tokenId } = req.body;
+    if (!ownerWallet || !renterWallet || tokenId === undefined) {
+      return res.status(400).json({ error: 'Missing cancellation parameters' });
+    }
+
+    const record = await powerUpService.cancelDelegation({ ownerWallet, renterWallet, tokenId });
+    res.status(200).json(record);
+  } catch (error) {
+    if (error.message === 'INVALID_ADDRESSES') {
+      return res.status(400).json({ error: 'Invalid wallet addresses' });
+    }
+    console.error('Error cancelling delegation:', error);
+    res.status(500).json({ error: 'Failed to cancel delegation' });
   }
 });
 
