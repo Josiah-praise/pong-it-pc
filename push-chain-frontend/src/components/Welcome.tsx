@@ -587,145 +587,149 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet,
   };
 
   return (
-    <div className="welcome">
-      {/* Push Chain Wallet Connect Button */}
-      <div className="wallet-connect-container">
-        <PushUniversalAccountButton />
-        {savedUsername && (
-          <button onClick={() => navigate('/game-history')} className="game-history-btn">
-            📊 History
-          </button>
-        )}
-        {isConnected && (
-          <button onClick={() => navigate('/my-wins')} className="my-wins-btn">
-            🏆 My Wins
-          </button>
-        )}
-        {isConnected && (
-          <button onClick={() => navigate('/unclaimed-stakes')} className="unclaimed-stakes-btn">
-            💰 Unclaimed Stakes
-            {unclaimedStakesCount > 0 && (
-              <span className="badge">{unclaimedStakesCount}</span>
-            )}
-          </button>
-        )}
-        {isConnected && (
-          <button onClick={() => navigate('/powerups')} className="powerups-btn">
-            🎁 Power-Ups
-          </button>
-        )}
+    <div className="welcome page-shell">
+      <div className="welcome__top surface-panel surface-panel--compact">
+        <div className="welcome__wallet">
+          <PushUniversalAccountButton />
+        </div>
+        <div className="welcome__links">
+          {savedUsername && (
+            <button onClick={() => navigate('/game-history')} className="welcome__link">
+              📊 History
+            </button>
+          )}
+          {isConnected && (
+            <button onClick={() => navigate('/my-wins')} className="welcome__link">
+              🏆 My Wins
+            </button>
+          )}
+          {isConnected && (
+            <button onClick={() => navigate('/unclaimed-stakes')} className="welcome__link welcome__link--badge">
+              <span>💰 Unclaimed Stakes</span>
+              {unclaimedStakesCount > 0 && (
+                <span className="badge">{unclaimedStakesCount}</span>
+              )}
+            </button>
+          )}
+          {isConnected && (
+            <button onClick={() => navigate('/powerups')} className="welcome__link">
+              🎁 Power-Ups
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className={`title-container ${showTitle ? 'show' : ''}`}>
+      <div className={`welcome__hero surface-panel ${showTitle ? 'show' : ''}`} ref={titleRef}>
         <h1 className="game-title">PONG-IT</h1>
         <div className="title-glow"></div>
       </div>
 
-      <div className="menu">
-        <div className="game-modes">
-          <button onClick={handleStartGame} className="mode-button quick-match">
-            <span className="button-icon">⚡</span>
-            <span className="button-text">Quick Match</span>
-          </button>
-          <button onClick={handleCreateRoom} className="mode-button create-room">
-            <span className="button-icon">➕</span>
-            <span className="button-text">Create Room</span>
-          </button>
-          <button onClick={handleJoinRoom} className="mode-button join-room">
-            <span className="button-icon">🔗</span>
-            <span className="button-text">Join Room</span>
-          </button>
-          <button
-            onClick={handleCreateStakedMatch}
-            className="mode-button staked-match"
-          >
-            <span className="button-icon">💎</span>
-            <span className="button-text">Staked Match</span>
-          </button>
-        </div>
-
-        {/* Transaction Status Overlay */}
-        {stakingInProgress && (
-          <div className="transaction-overlay">
-            <div className="transaction-modal">
-              {stakingErrorMessage ? (
-                <>
-                  <h3 style={{ color: '#ff6b6b', marginBottom: '20px' }}>Transaction Failed</h3>
-                  <div style={{
-                    background: 'rgba(255, 107, 107, 0.1)',
-                    border: '1px solid #ff6b6b',
-                    borderRadius: '8px',
-                    padding: '15px',
-                    marginBottom: '20px',
-                    color: '#ff6b6b',
-                    fontSize: '0.9rem'
-                  }}>
-                    {stakingErrorMessage}
-                  </div>
-                  <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-                    <button
-                      onClick={async () => {
-                        if (pendingRoomCode && selectedStakeAmount) {
-                          setStakingErrorMessage(null);
-                          try {
-                            await stakeAsPlayer1(pendingRoomCode, selectedStakeAmount);
-                          } catch (error) {
-                          }
-                        }
-                      }}
-                      style={{
-                        padding: '12px 24px',
-                        background: 'rgb(116,113,203)',
-                        color: '#000',
-                        border: 'none',
-                        borderRadius: '5px',
-                        cursor: 'pointer',
-                        fontFamily: 'Press Start 2P, monospace',
-                        fontSize: '0.8rem'
-                      }}
-                    >
-                      Retry
-                    </button>
-                    <button
-                      onClick={() => {
-                        setStakingInProgress(false);
-                        setStakingErrorMessage(null);
-                        setPendingRoomCode(null);
-                        setSelectedStakeAmount(null);
-                      }}
-                      style={{
-                        padding: '12px 24px',
-                        background: '#444',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '5px',
-                        cursor: 'pointer',
-                        fontFamily: 'Press Start 2P, monospace',
-                        fontSize: '0.8rem'
-                      }}
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <h3>
-                    {isStakingPending && 'Confirm Transaction in Wallet...'}
-                    {isStakingConfirming && 'Transaction Confirming...'}
-                  </h3>
-                  <div className="transaction-spinner"></div>
-                  <p>
-                    {isStakingPending && 'Please confirm the transaction in your wallet'}
-                    {isStakingConfirming && 'Waiting for blockchain confirmation'}
-                  </p>
-                </>
-              )}
-            </div>
+      <div className="welcome__grid page-content-grid">
+        <section className="welcome__actions surface-panel">
+          <div className="game-modes">
+            <button onClick={handleStartGame} className="mode-button quick-match">
+              <span className="button-icon">⚡</span>
+              <span className="button-text">Quick Match</span>
+            </button>
+            <button onClick={handleCreateRoom} className="mode-button create-room">
+              <span className="button-icon">➕</span>
+              <span className="button-text">Create Room</span>
+            </button>
+            <button onClick={handleJoinRoom} className="mode-button join-room">
+              <span className="button-icon">🔗</span>
+              <span className="button-text">Join Room</span>
+            </button>
+            <button
+              onClick={handleCreateStakedMatch}
+              className="mode-button staked-match"
+            >
+              <span className="button-icon">💎</span>
+              <span className="button-text">Staked Match</span>
+            </button>
           </div>
-        )}
 
-        <div className="active-games">
+          {stakingInProgress && (
+            <div className="transaction-overlay">
+              <div className="transaction-modal">
+                {stakingErrorMessage ? (
+                  <>
+                    <h3 style={{ color: '#ff6b6b', marginBottom: '20px' }}>Transaction Failed</h3>
+                    <div style={{
+                      background: 'rgba(255, 107, 107, 0.1)',
+                      border: '1px solid #ff6b6b',
+                      borderRadius: '8px',
+                      padding: '15px',
+                      marginBottom: '20px',
+                      color: '#ff6b6b',
+                      fontSize: '0.9rem'
+                    }}>
+                      {stakingErrorMessage}
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                      <button
+                        onClick={async () => {
+                          if (pendingRoomCode && selectedStakeAmount) {
+                            setStakingErrorMessage(null);
+                            try {
+                              await stakeAsPlayer1(pendingRoomCode, selectedStakeAmount);
+                            } catch (error) {
+                            }
+                          }
+                        }}
+                        style={{
+                          padding: '12px 24px',
+                          background: 'rgb(116,113,203)',
+                          color: '#000',
+                          border: 'none',
+                          borderRadius: '5px',
+                          cursor: 'pointer',
+                          fontFamily: 'Press Start 2P, monospace',
+                          fontSize: '0.8rem'
+                        }}
+                      >
+                        Retry
+                      </button>
+                      <button
+                        onClick={() => {
+                          setStakingInProgress(false);
+                          setStakingErrorMessage(null);
+                          setPendingRoomCode(null);
+                          setSelectedStakeAmount(null);
+                        }}
+                        style={{
+                          padding: '12px 24px',
+                          background: '#444',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '5px',
+                          cursor: 'pointer',
+                          fontFamily: 'Press Start 2P, monospace',
+                          fontSize: '0.8rem'
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <h3>
+                      {isStakingPending && 'Confirm Transaction in Wallet...'}
+                      {isStakingConfirming && 'Transaction Confirming...'}
+                    </h3>
+                    <div className="transaction-spinner"></div>
+                    <p>
+                      {isStakingPending && 'Please confirm the transaction in your wallet'}
+                      {isStakingConfirming && 'Waiting for blockchain confirmation'}
+                    </p>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
+        </section>
+
+        <section className="active-games surface-panel">
           <h2>Live Games ({activeGames.length})</h2>
           <div className="games-list">
             {activeGames.length > 0 ? (
@@ -745,16 +749,16 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet,
               <div className="no-games">No live games at the moment</div>
             )}
           </div>
-        </div>
+        </section>
 
-        <div className="instructions">
+        <section className="instructions surface-panel">
           <h2>How to Play</h2>
           <p>Move your paddle to hit the ball past your opponent!</p>
           <p>Use UP/DOWN arrow keys to move your paddle</p>
           <p>First to 5 points wins!</p>
-        </div>
+        </section>
         
-        <div className="rankings">
+        <section className="rankings surface-panel">
           <h2>Top Players</h2>
           <div className="rankings-list">
             {rankings.length > 0 ? (
@@ -770,7 +774,7 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet,
               <div className="no-rankings">No players ranked yet</div>
             )}
           </div>
-        </div>
+        </section>
       </div>
 
       <Dialog

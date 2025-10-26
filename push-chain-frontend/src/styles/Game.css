@@ -915,3 +915,97 @@ body .endgame-container > *,
     right: 0.5rem;
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* Layout refresh                                                             */
+/* -------------------------------------------------------------------------- */
+
+.App .game-container {
+  width: 100%;
+  min-height: 100vh;
+  padding: clamp(1.25rem, 3vw, 3.25rem);
+  box-sizing: border-box;
+  background: transparent;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(1rem, 2vw, 2rem);
+}
+
+.App .game-container canvas {
+  border-radius: var(--border-radius-lg);
+  border: var(--border-width) solid rgba(218, 118, 236, 0.45);
+  box-shadow: 0 36px 65px rgba(8, 0, 22, 0.55), 0 0 35px rgba(218, 118, 236, 0.22);
+  background: radial-gradient(120% 120% at 50% 0%, rgba(5, 0, 12, 0.9) 0%, rgba(5, 0, 12, 0.98) 65%);
+}
+
+.App .game-container .score-board {
+  gap: clamp(2rem, 4vw, 5rem);
+  font-size: clamp(2rem, 4vw, 3.5rem);
+  color: var(--color-primary);
+  text-shadow: 0 0 26px rgba(218, 118, 236, 0.35);
+}
+
+.App .game-container .player-names {
+  top: clamp(20px, 3vw, 60px);
+  padding: 0 clamp(1.5rem, 4vw, 6rem);
+  font-size: clamp(0.55rem, 0.9vw, 0.85rem);
+}
+
+.App .game-container .powerup-bar {
+  gap: clamp(0.5rem, 1.2vw, 1.5rem);
+  background: rgba(10, 0, 24, 0.65);
+  padding: clamp(0.6rem, 1.2vw, 1rem) clamp(1rem, 2vw, 1.8rem);
+  border-radius: var(--border-radius-md);
+  border: 1px solid rgba(218, 118, 236, 0.35);
+  box-shadow: var(--shadow-surface);
+}
+
+.App .game-container .powerup-buttons {
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.App .game-container .powerup-btn {
+  border-radius: var(--border-radius-sm);
+  border-color: rgba(218, 118, 236, 0.45);
+  background: rgba(218, 118, 236, 0.22);
+  color: var(--color-text);
+  padding: 0.6rem 1.1rem;
+}
+
+.App .game-container .powerup-btn:hover:not(:disabled) {
+  background: rgba(218, 118, 236, 0.35);
+  box-shadow: 0 0 18px rgba(218, 118, 236, 0.35);
+}
+
+.App .game-container .music-controls {
+  bottom: clamp(16px, 3vw, 32px);
+  background: rgba(10, 0, 24, 0.65);
+  padding: 0.35rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid rgba(218, 118, 236, 0.35);
+  box-shadow: var(--shadow-surface);
+}
+
+.App .game-container .music-button {
+  background: transparent;
+  color: var(--color-text-muted);
+  padding: 0.5rem 0.9rem;
+}
+
+.App .game-container .music-button:hover {
+  color: var(--color-primary);
+  background: rgba(218, 118, 236, 0.15);
+}
+
+.App .game-container .back-button {
+  background: rgba(10, 0, 24, 0.8);
+  color: var(--color-primary);
+  border: 1px solid rgba(218, 118, 236, 0.45);
+}
+
+@media (max-width: 768px) {
+  .App .game-container {
+    padding: clamp(1rem, 5vw, 2rem);
+  }
+}

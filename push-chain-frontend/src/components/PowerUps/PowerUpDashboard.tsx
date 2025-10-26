@@ -19,6 +19,7 @@ import {
   useDelegateBoost,
   useOpenDailyCrate,
 } from '../../hooks/usePowerUps'
+import { parseTransactionError } from '../../utils/errorParser'
 import '../../styles/PowerUps.css'
 
 interface PowerUpDashboardProps {
@@ -121,13 +122,15 @@ const PowerUpDashboard: FC<PowerUpDashboardProps> = ({ walletAddress }) => {
 
   useEffect(() => {
     if (delegationError) {
-      setError(delegationError.message)
+      const parsed = parseTransactionError(delegationError)
+      setError(parsed.message)
     }
   }, [delegationError])
 
   useEffect(() => {
     if (cancelError) {
-      setError(cancelError.message)
+      const parsed = parseTransactionError(cancelError)
+      setError(parsed.message)
     }
   }, [cancelError])
 
@@ -216,7 +219,9 @@ const PowerUpDashboard: FC<PowerUpDashboardProps> = ({ walletAddress }) => {
         })
         await refreshSummary()
       } catch (err: any) {
-        setError(err.message || 'Failed to cancel rental')
+        const parsed = parseTransactionError(err)
+        setError(parsed.message || 'Failed to cancel rental')
+        await refreshSummary()
       }
     },
     [walletAddress, cancelDelegationTx, refreshSummary]
@@ -302,8 +307,12 @@ const PowerUpDashboard: FC<PowerUpDashboardProps> = ({ walletAddress }) => {
   const renderDelegations = () => {
     if (!summary) return null
 
-    const ownerDelegations = summary.delegations?.asOwner ?? []
-    const borrowerDelegations = summary.delegations?.asRenter ?? []
+    const ownerDelegations = (summary.delegations?.asOwner ?? []).filter(
+      record => record.status === 'active' && record.remaining > 0
+    )
+    const borrowerDelegations = (summary.delegations?.asRenter ?? []).filter(
+      record => record.status === 'active' && record.remaining > 0
+    )
 
     return (
       <div className="powerup-card">
@@ -402,7 +411,12 @@ const PowerUpDashboard: FC<PowerUpDashboardProps> = ({ walletAddress }) => {
                         <button
                           type="button"
                           onClick={() => handleCancelDelegation(record)}
-                          disabled={isCancelling || isCancellingConfirming}
+                          disabled={isCancelling || isCancellingConfirming || record.remaining === 0}
+                          title={
+                            record.remaining === 0
+                              ? 'This boost pass has already been fully used.'
+                              : undefined
+                          }
                         >
                           {isCancelling || isCancellingConfirming ? 'Cancelling…' : 'Reclaim'}
                         </button>

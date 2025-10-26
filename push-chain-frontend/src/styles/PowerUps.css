@@ -271,3 +271,86 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* -------------------------------------------------------------------------- */
+/* Layout refresh                                                             */
+/* -------------------------------------------------------------------------- */
+
+.App .powerup-page {
+  min-height: 100vh;
+  width: min(var(--max-content-width), calc(100% - 2 * var(--page-padding)));
+  margin: 0 auto;
+  padding: var(--page-padding);
+  display: flex;
+  flex-direction: column;
+  gap: var(--section-gap);
+  color: var(--color-text);
+}
+
+.App .powerup-page .powerup-header {
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-surface);
+  padding: clamp(1.1rem, 2.5vw, 2rem);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.App .powerup-page .powerup-header h1,
+.App .powerup-page .powerup-header h2 {
+  margin: 0;
+  font-size: clamp(1.6rem, 2.4vw, 2.4rem);
+  color: var(--color-primary);
+  text-shadow: 0 0 18px rgba(218, 118, 236, 0.3);
+}
+
+.App .powerup-page .powerup-header button {
+  background: var(--color-primary);
+  color: #05000f;
+  border: none;
+  border-radius: var(--border-radius-sm);
+  padding: 0.75rem 1.6rem;
+  box-shadow: 0 0 20px rgba(218, 118, 236, 0.3);
+}
+
+.App .powerup-page .powerup-card {
+  background: var(--color-surface);
+  border: var(--border-width) solid rgba(218, 118, 236, 0.35);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-surface);
+  padding: clamp(1.4rem, 2.4vw, 2.4rem);
+}
+
+.App .powerup-page .powerup-grid {
+  gap: var(--content-gap);
+}
+
+.App .powerup-page .powerup-tile {
+  background: rgba(12, 0, 28, 0.8);
+  border: 1px solid rgba(218, 118, 236, 0.35);
+  border-radius: var(--border-radius-md);
+  padding: clamp(1rem, 2vw, 1.6rem);
+  box-shadow: none;
+}
+
+.App .powerup-page .delegation-form,
+.App .powerup-page .delegation-lists section,
+.App .powerup-page .crate-section {
+  background: rgba(12, 0, 28, 0.7);
+  border: 1px solid rgba(218, 118, 236, 0.3);
+  border-radius: var(--border-radius-md);
+  padding: clamp(1rem, 2vw, 1.6rem);
+}
+
+.App .powerup-page .delegation-form button,
+.App .powerup-page .crate-section button {
+  border-radius: var(--border-radius-sm);
+}
+
+@media (max-width: 768px) {
+  .App .powerup-page {
+    padding: clamp(1.25rem, 4vw, 2rem);
+  }
+}

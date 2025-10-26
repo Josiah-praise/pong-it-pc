@@ -96,6 +96,30 @@ export function parseTransactionError(error: any): ParsedError {
     };
   }
 
+  if (lowerError.includes('delegationinsufficient')) {
+    return {
+      title: 'Nothing To Reclaim',
+      message: 'This rental has already been fully used or cancelled on-chain. Refresh to update your rentals.',
+      isUserAction: false
+    };
+  }
+
+  if (lowerError.includes('delegationexpired')) {
+    return {
+      title: 'Rental Expired',
+      message: 'This rental already expired. Refresh the page to update your inventory.',
+      isUserAction: false
+    };
+  }
+
+  if (lowerError.includes('invalid expiry')) {
+    return {
+      title: 'Rental Still Active',
+      message: 'This rental period is still active. Try again after the expiry time.',
+      isUserAction: false
+    };
+  }
+
   // Network errors
   if (lowerError.includes('network error') || lowerError.includes('connection failed')) {
     return {
@@ -164,4 +188,3 @@ export function getErrorHint(error: any): string {
   const parsed = parseTransactionError(error);
   return parsed.message;
 }
-

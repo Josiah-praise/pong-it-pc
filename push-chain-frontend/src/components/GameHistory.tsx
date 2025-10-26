@@ -138,6 +138,7 @@ const GameHistory: FC<GameHistoryProps> = ({ savedUsername }) => {
         <div className="game-history-header">
           <button onClick={() => navigate('/')} className="back-button">← Back</button>
           <h1>Game History</h1>
+          <AddressDisplay />
         </div>
         <div className="no-username-prompt">
           <p>Please set your username to view game history</p>
@@ -151,10 +152,10 @@ const GameHistory: FC<GameHistoryProps> = ({ savedUsername }) => {
 
   return (
     <div className="game-history-container">
-      <AddressDisplay />
       <div className="game-history-header">
         <button onClick={() => navigate('/')} className="back-button">← Back</button>
         <h1>Game History</h1>
+        <AddressDisplay />
       </div>
 
       {/* Stats Cards */}

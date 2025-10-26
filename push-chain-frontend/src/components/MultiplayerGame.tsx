@@ -1008,14 +1008,24 @@ const MultiplayerGame: FC<MultiplayerGameProps> = ({ username, walletAddress, au
     if (!ctx) return;
 
     const updateCanvasSize = () => {
+      const container = containerRef.current;
       const isMobile = window.innerWidth <= 768;
-      if (isMobile) {
-        canvas.width = window.innerWidth * 0.95;
-        canvas.height = window.innerHeight * 0.65;
-      } else {
-        canvas.width = window.innerWidth * 0.8;
-        canvas.height = window.innerHeight * 0.8;
-      }
+      const availableWidth = container?.clientWidth ?? window.innerWidth;
+      const availableHeight = container?.clientHeight ?? window.innerHeight;
+
+      const widthScale = isMobile ? 0.95 : 0.88;
+      const heightScale = isMobile ? 0.72 : 0.85;
+
+      const baseWidth = availableWidth * widthScale;
+      const baseHeight = availableHeight * heightScale;
+
+      const width = Math.max(320, Math.min(baseWidth, availableWidth));
+      const height = Math.max(240, Math.min(baseHeight, availableHeight));
+
+      canvas.width = width;
+      canvas.height = height;
+      canvas.style.maxWidth = '100%';
+      canvas.style.maxHeight = '100%';
     };
 
     updateCanvasSize();

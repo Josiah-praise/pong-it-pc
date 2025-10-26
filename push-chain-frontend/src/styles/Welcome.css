@@ -1,26 +1,21 @@
 .welcome {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  width: 100%;
   min-height: 100vh;
-  padding: 2rem 1rem;
-  background-color: #000;
-  color: white;
-  text-align: center;
-  overflow-y: auto;
-  max-height: 100vh;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  color: var(--color-text);
 }
 
-.title-container {
+.welcome__hero {
   position: relative;
-  margin: 2rem 0 4rem;
+  margin: 0;
   opacity: 0;
   transform: translateY(-20px);
   transition: all 0.5s ease-out;
 }
 
-.title-container.show {
+.welcome__hero.show {
   opacity: 1;
   transform: translateY(0);
 }
@@ -604,123 +599,6 @@ body .welcome,
   }
 }
 
-/* Wallet Connect Container */
-.wallet-connect-container {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  z-index: 100;
-  display: flex;
-  gap: 0.75rem;
-  max-width: 400px;
-}
-
-/* Override Push Chain button styling to prevent overflow */
-.wallet-connect-container > div {
-  max-width: 100%;
-}
-
-.wallet-connect-container button {
-  max-width: 220px !important;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-size: 0.7rem !important;
-  padding: 0.6rem 1rem !important;
-}
-
-.connect-wallet-btn {
-  background: linear-gradient(135deg, #7b3fe4 0%, #9d5ff5 100%);
-  color: white;
-  padding: 0.75rem 1.5rem;
-  font-size: 0.9rem;
-  border: 2px solid #DA76EC;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-family: 'Press Start 2P', monospace;
-  white-space: nowrap;
-}
-
-.connect-wallet-btn:hover {
-  background: linear-gradient(135deg, #6a2fcf 0%, #8c4ee4 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 0 20px rgba(123, 63, 228, 0.6);
-}
-
-.my-wins-btn {
-  background: rgba(218, 118, 236, 0.2);
-  color: #DA76EC;
-  padding: 0.75rem 1.5rem;
-  font-size: 0.9rem;
-  border: 2px solid #DA76EC;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-family: 'Press Start 2P', monospace;
-  white-space: nowrap;
-}
-
-.my-wins-btn:hover {
-  background: rgba(218, 118, 236, 0.3);
-  transform: translateY(-2px);
-  box-shadow: 0 0 20px rgba(218, 118, 236, 0.5);
-}
-
-.unclaimed-stakes-btn {
-  background: rgba(218, 118, 236, 0.2);
-  color: #DA76EC;
-  padding: 0.75rem 1.2rem;
-  font-size: 0.65rem;
-  border: 2px solid #DA76EC;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-family: 'Press Start 2P', monospace;
-  white-space: nowrap;
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.unclaimed-stakes-btn:hover {
-  background: rgba(218, 118, 236, 0.3);
-  transform: translateY(-2px);
-  box-shadow: 0 0 20px rgba(218, 118, 236, 0.5);
-}
-
-.powerups-btn {
-  background: rgba(218, 118, 236, 0.2);
-  color: #DA76EC;
-  padding: 0.75rem 1.5rem;
-  font-size: 0.9rem;
-  border: 2px solid #DA76EC;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-family: 'Press Start 2P', monospace;
-  white-space: nowrap;
-}
-
-.powerups-btn:hover {
-  background: rgba(218, 118, 236, 0.3);
-  transform: translateY(-2px);
-  box-shadow: 0 0 20px rgba(218, 118, 236, 0.5);
-}
-
-.unclaimed-stakes-btn .badge {
-  background: #DA76EC;
-  color: #000;
-  font-size: 0.7rem;
-  font-weight: bold;
-  padding: 0.2rem 0.5rem;
-  border-radius: 12px;
-  min-width: 20px;
-  text-align: center;
-  animation: pulse 2s infinite;
-}
-
 @keyframes pulse {
   0%, 100% {
     transform: scale(1);
@@ -895,4 +773,273 @@ dialog.stake-modal h2 {
   .transaction-modal h3 {
     font-size: 0.8rem;
   }
-} 
+}
+
+/* -------------------------------------------------------------------------- */
+/* Modern layout overrides                                                    */
+/* -------------------------------------------------------------------------- */
+
+.App .welcome {
+  width: min(var(--max-content-width), calc(100% - 2 * var(--page-padding)));
+  margin: 0 auto;
+  padding: var(--page-padding);
+  border: none !important;
+  background: transparent !important;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--section-gap);
+  text-align: center;
+}
+
+.App .welcome > * {
+  width: 100%;
+}
+
+.App .welcome .welcome__top {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: clamp(0.75rem, 2vw, 1.5rem);
+  align-items: center;
+  padding: clamp(0.8rem, 2vw, 1.4rem);
+}
+
+.App .welcome .welcome__wallet {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.App .welcome .welcome__links {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.App .welcome .welcome__link {
+  font-size: var(--text-size-xs);
+  padding: 0.65rem 1.2rem;
+  background: rgba(218, 118, 236, 0.2);
+  border: var(--border-width) solid rgba(218, 118, 236, 0.35);
+  border-radius: var(--border-radius-sm);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.App .welcome .welcome__link:hover {
+  transform: translateY(-1px);
+  background: rgba(218, 118, 236, 0.32);
+  box-shadow: 0 0 18px rgba(218, 118, 236, 0.35);
+}
+
+.App .welcome .welcome__link--badge .badge {
+  margin-left: 0.35rem;
+  background: linear-gradient(135deg, var(--color-accent), #ffae00);
+  color: #0b0215;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-size: var(--text-size-xs);
+}
+
+.App .welcome .welcome__hero {
+  width: 100%;
+  text-align: center;
+  padding: clamp(1.5rem, 3vw, 3rem);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--glow-primary);
+}
+
+.App .welcome .welcome__hero .title-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--border-radius-lg);
+  pointer-events: none;
+  box-shadow: 0 0 60px rgba(218, 118, 236, 0.45);
+  opacity: 0.75;
+}
+
+.App .welcome .game-title {
+  font-size: var(--heading-size);
+  padding: 0;
+  margin: 0;
+  letter-spacing: clamp(0.35rem, 1vw, 0.6rem);
+}
+
+.App .welcome .welcome__grid {
+  display: grid;
+  gap: var(--section-gap);
+  text-align: left;
+}
+
+.App .welcome .welcome__actions .game-modes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--content-gap);
+}
+
+.App .welcome .mode-button {
+  display: grid;
+  place-items: center;
+  gap: 0.65rem;
+  padding: clamp(1.3rem, 2.6vw, 2.3rem) clamp(0.9rem, 1.8vw, 1.7rem);
+  font-size: var(--text-size-sm);
+  letter-spacing: 0.08em;
+  background: linear-gradient(135deg, rgba(218, 118, 236, 0.25) 0%, rgba(247, 61, 255, 0.35) 100%);
+  border: var(--border-width) solid rgba(218, 118, 236, 0.45);
+  border-radius: var(--border-radius-lg);
+  color: var(--color-text);
+  box-shadow: var(--shadow-surface);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.App .welcome .mode-button:hover:not(:disabled) {
+  transform: translateY(-3px);
+  background: linear-gradient(135deg, rgba(218, 118, 236, 0.35) 0%, rgba(247, 61, 255, 0.5) 100%);
+  box-shadow: 0 0 28px rgba(218, 118, 236, 0.38);
+}
+
+.App .welcome .mode-button .button-icon {
+  font-size: clamp(1.35rem, 1.8vw, 2rem);
+}
+
+.App .welcome .mode-button .button-text {
+  font-size: var(--text-size-sm);
+}
+
+.App .welcome .surface-panel {
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-surface);
+}
+
+.App .welcome .surface-panel:not(.surface-panel--compact) {
+  padding: var(--block-padding);
+}
+
+.App .welcome .surface-panel h2 {
+  font-size: clamp(1.35rem, 2vw, 1.9rem);
+  color: var(--color-primary);
+  margin-bottom: 1.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.App .welcome .instructions p {
+  font-size: var(--text-size-sm);
+  color: var(--color-text-muted);
+}
+
+.App .welcome .games-list {
+  display: grid;
+  gap: 1rem;
+}
+
+.App .welcome .game-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1.1rem 1.25rem;
+  border-radius: var(--border-radius-md);
+  border: 1px solid rgba(218, 118, 236, 0.25);
+  background: rgba(15, 2, 36, 0.85);
+  transition: transform 0.2s ease, border 0.2s ease, box-shadow 0.2s ease;
+}
+
+.App .welcome .game-item:hover {
+  transform: translateY(-2px);
+  border-color: rgba(218, 118, 236, 0.55);
+  box-shadow: 0 0 20px rgba(218, 118, 236, 0.3);
+}
+
+.App .welcome .game-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: var(--text-size-sm);
+}
+
+.App .welcome .game-stats {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  font-size: var(--text-size-xs);
+  color: var(--color-text-muted);
+}
+
+.App .welcome .rankings-list {
+  display: grid;
+  gap: 0.9rem;
+}
+
+.App .welcome .ranking-item {
+  display: grid !important;
+  grid-template-columns: auto 1fr auto auto !important;
+  align-items: center !important;
+  gap: 0.75rem !important;
+  background: rgba(10, 0, 24, 0.65) !important;
+  border-radius: var(--border-radius-sm) !important;
+  padding: 0.9rem 1.1rem !important;
+  border: 1px solid rgba(218, 118, 236, 0.3) !important;
+}
+
+.App .welcome .rank,
+.App .welcome .name,
+.App .welcome .rating,
+.App .welcome .stats {
+  font-size: var(--text-size-xs) !important;
+}
+
+.App .welcome .rank {
+  color: var(--color-primary);
+}
+
+.App .welcome .rating {
+  color: var(--color-accent) !important;
+}
+
+.App .welcome .no-games,
+.App .welcome .no-rankings {
+  padding: 1.25rem;
+  border-radius: var(--border-radius-md);
+  background: rgba(10, 0, 24, 0.65);
+  border: 1px dashed rgba(218, 118, 236, 0.35);
+  color: var(--color-text-muted);
+}
+
+@media (min-width: 1024px) {
+  .App .welcome .welcome__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .App .welcome .welcome__actions {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 768px) {
+  .App .welcome {
+    padding: clamp(1.25rem, 4vw, 2rem);
+    gap: var(--content-gap);
+  }
+
+  .App .welcome .welcome__top {
+    grid-template-columns: 1fr;
+    justify-items: stretch;
+  }
+
+  .App .welcome .welcome__links {
+    justify-content: flex-start;
+  }
+
+  .App .welcome .welcome__actions .game-modes {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+}

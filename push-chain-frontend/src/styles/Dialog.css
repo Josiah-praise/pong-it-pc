@@ -146,3 +146,46 @@
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/* Layout refresh                                                             */
+/* -------------------------------------------------------------------------- */
+
+.App .custom-dialog {
+  background: var(--color-surface);
+  border: var(--border-width) solid rgba(218, 118, 236, 0.45);
+  box-shadow: var(--shadow-surface);
+  color: var(--color-text);
+}
+
+.App .custom-dialog .dialog-title {
+  color: var(--color-primary);
+}
+
+.App .custom-dialog .dialog-message {
+  color: var(--color-text-muted);
+}
+
+.App .custom-dialog .dialog-btn {
+  border-radius: var(--border-radius-sm);
+}
+
+.App .custom-dialog .dialog-btn-confirm {
+  background: var(--color-primary);
+  color: #05000f;
+  border-color: rgba(218, 118, 236, 0.75);
+}
+
+.App .custom-dialog .dialog-btn-confirm:hover {
+  background: var(--color-primary-strong);
+}
+
+.App .custom-dialog .dialog-btn-cancel {
+  background: rgba(10, 0, 24, 0.6);
+  border-color: rgba(218, 118, 236, 0.3);
+  color: var(--color-text-muted);
+}
+
+.App .custom-dialog .dialog-btn-cancel:hover {
+  background: rgba(10, 0, 24, 0.75);
+  color: var(--color-text);
+}
