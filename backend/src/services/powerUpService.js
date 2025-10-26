@@ -15,14 +15,23 @@ const DEFAULT_RPC_URL = 'https://evm.rpc-testnet-donut-node1.push.org';
 let powerUpArtifact = null;
 
 try {
-  // Dynamically require the compiled artifact to avoid bundling issues in tests
-  // eslint-disable-next-line import/no-dynamic-require, global-require
-  powerUpArtifact = require(
-    path.join(
-      __dirname,
-      '../../../hardhat-blockchain/artifacts/contracts/PongPowerUps.sol/PongPowerUps.json'
-    )
-  );
+  // Try to load from frontend contracts first (production path)
+  try {
+    powerUpArtifact = require(
+      path.join(
+        __dirname,
+        '../JSON/PongPowerUps.json'
+      )
+    );
+  } catch (frontendError) {
+    // Fallback to hardhat artifacts (development path)
+    powerUpArtifact = require(
+      path.join(
+        __dirname,
+        '../../../hardhat-blockchain/artifacts/contracts/PongPowerUps.sol/PongPowerUps.json'
+      )
+    );
+  }
 } catch (error) {
   console.warn('⚠️  Unable to load PongPowerUps artifact:', error.message);
 }
@@ -45,7 +54,7 @@ class PowerUpService {
     }
     this.initialized = true;
 
-    const contractAddress = process.env.POWERUP_CONTRACT_ADDRESS;
+    const contractAddress = process.env.PONG_POWERUPS_ADDRESS || process.env.POWERUP_CONTRACT_ADDRESS;
     const privateKey =
       process.env.POWERUP_SIGNER_PRIVATE_KEY || process.env.SIGNING_WALLET_PRIVATE_KEY;
     const rpcUrl = process.env.POWERUP_RPC_URL || DEFAULT_RPC_URL;
