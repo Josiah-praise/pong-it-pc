@@ -18,13 +18,12 @@ try {
   // Try to load from frontend contracts first (production path)
   try {
     powerUpArtifact = require(
-      path.join(
-        __dirname,
-        '../JSON/PongPowerUps.json'
-      )
+      './json/PongPowerUps.jsons'
     );
+    console.log("PowerUpArtifact", powerUpArtifact)
   } catch (frontendError) {
     // Fallback to hardhat artifacts (development path)
+    console.log("Inside the fallback for some reason")
     powerUpArtifact = require(
       path.join(
         __dirname,
