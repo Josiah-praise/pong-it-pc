@@ -780,7 +780,7 @@ dialog.stake-modal h2 {
 /* -------------------------------------------------------------------------- */
 
 .App .welcome {
-  width: min(var(--max-content-width), calc(100% - 2 * var(--page-padding)));
+  /* width: min(var(--max-content-width), calc(100% - 2 * var(--page-padding))); */
   margin: 0 auto;
   padding: var(--page-padding);
   border: none !important;

@@ -61,7 +61,7 @@
 
 /* Stats Section */
 .stats-section {
-  max-width: 1200px;
+  max-width: 1296px;
   margin: 0 auto 2rem;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -72,7 +72,7 @@
   background: rgba(255, 255, 255, 0.05);
   border: 2px solid #DA76EC;
   border-radius: 8px;
-  padding: 1.5rem;
+  padding: 1.5rem .5rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -173,6 +173,7 @@
 /* Games Content */
 .games-content {
   max-width: 1200px;
+  min-width: 1200px;
   margin: 0 auto;
 }
 
@@ -235,7 +236,7 @@
 /* Games List */
 .games-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   gap: 1.5rem;
   margin-bottom: 2rem;
 }

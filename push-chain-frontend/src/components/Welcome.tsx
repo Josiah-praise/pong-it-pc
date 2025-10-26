@@ -755,7 +755,7 @@ const Welcome: FC<WelcomeProps> = ({ setGameState, savedUsername, onUsernameSet,
           <h2>How to Play</h2>
           <p>Move your paddle to hit the ball past your opponent!</p>
           <p>Use UP/DOWN arrow keys to move your paddle</p>
-          <p>First to 5 points wins!</p>
+          <p>First to 10 points wins!</p>
         </section>
         
         <section className="rankings surface-panel">

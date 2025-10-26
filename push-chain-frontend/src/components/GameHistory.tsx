@@ -167,7 +167,7 @@ const GameHistory: FC<GameHistoryProps> = ({ savedUsername }) => {
           </div>
           <div className="stat-card">
             <span className="stat-label">Record</span>
-            <span className="stat-value">{stats.wins}W - {stats.losses}L</span>
+            <span className="stat-value whitespace-nowrap">{stats.wins}W - {stats.losses}L</span>
           </div>
           <div className="stat-card">
             <span className="stat-label">Win Rate</span>
