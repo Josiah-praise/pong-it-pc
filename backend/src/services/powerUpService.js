@@ -18,7 +18,7 @@ try {
   // Try to load from frontend contracts first (production path)
   try {
     powerUpArtifact = require(
-      './json/PongPowerUps.jsons'
+      './json/PongPowerUps.json'
     );
     console.log("PowerUpArtifact", powerUpArtifact)
   } catch (frontendError) {
