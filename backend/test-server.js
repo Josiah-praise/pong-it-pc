@@ -6,6 +6,7 @@ const options = {
   path: '/health',
   method: 'GET'
 };
+// local
 
 const req = http.request(options, res => {
   console.log(`Status: ${res.statusCode}`);
