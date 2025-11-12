@@ -333,9 +333,13 @@ class MultiplayerHandler {
       return;
     }
 
-    const availableRooms = Array.from(this.roomManager.rooms.values()).filter(
-      room => room.status === 'waiting' && !room.guest
-    );
+    const availableRooms = Array.from(this.roomManager.rooms.values()).filter(room => {
+      if (room.status !== 'waiting' || room.guest) {
+        return false;
+      }
+      const hostSocketId = room.host?.socketId;
+      return hostSocketId && this.io.sockets.sockets.has(hostSocketId);
+    });
 
     if (availableRooms.length > 0) {
       const room = availableRooms[0];
@@ -974,7 +978,10 @@ class MultiplayerHandler {
     const isGuest = room.guest && room.guest.socketId === socket.id;
 
     const activeGame = this.gameManager.getGame(roomCode);
-    const isGameFinished = !activeGame || activeGame.status === 'finished';
+    const hasActiveGame = !!activeGame;
+    const isGameFinished = hasActiveGame && activeGame.status === 'finished';
+    const isPreMatchRoom =
+      !hasActiveGame && (room.status === 'waiting' || room.status === 'ready');
 
     console.log(`🔌 handleDisconnect - Room: ${roomCode}`, {
       isStaked: room.isStaked,
@@ -1015,14 +1022,23 @@ class MultiplayerHandler {
       return;
     }
 
-    // CASE 3: Game is finished (game over screen) -> Don't destroy room, keep for rematch
+    // CASE 3: Host leaves casual quick match before anyone joins -> destroy room
+    if (!room.isStaked && isHost && isPreMatchRoom) {
+      console.log(`🗑️ Host left casual room ${roomCode} before match start - cleaning up room`);
+      this.io.to(roomCode).emit('opponentLeft');
+      this.endGame(roomCode);
+      this.roomManager.removePlayerFromRoom(socket.id);
+      return;
+    }
+
+    // CASE 4: Game is finished (game over screen) -> Don't destroy room, keep for rematch
     if (room.status === 'finished' || isGameFinished) {
       console.log(`🎮 Game finished for room ${roomCode} - old socket disconnecting, keeping room for rematch`);
       this.roomManager.detachPlayerFromRoom(socket.id);
       return;
     }
 
-    // CASE 4: Active game - opponent disconnected during gameplay -> end the game
+    // CASE 5: Active game (or ready state with active game reference) - opponent disconnected during gameplay
     console.log(`❌ Ending active game for room ${roomCode} (status: ${room.status}) - opponent disconnected during gameplay`);
     this.io.to(roomCode).emit('opponentDisconnected');
 
